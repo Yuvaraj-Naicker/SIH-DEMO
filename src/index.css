@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+/* Leaflet Custom Marker Resets */
+.leaflet-div-icon.custom-node-marker,
+.leaflet-div-icon.packet-pulse-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+
+/* TerraWatch Overview — Antigravity-style scroll presentation */
+.tw-overview-shell {
+  position: relative;
+}
+
+.tw-overview-region {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin-bottom: 12px;
+}
+
+.tw-overview-stage {
+  height: calc(100vh - 9.5rem);
+  min-height: 560px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-right: 0;
+}
+
+.tw-overview-snap {
+  min-height: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 28px;
+  padding-bottom: 28px;
+  box-sizing: border-box;
+}
+
+.tw-overview-hero {
+  min-height: 100%;
+}
+
+.tw-overview-stage::-webkit-scrollbar {
+  display: none;
+}
+
+.tw-overview-about > div:first-child,
+.tw-overview-faq {
+  max-height: none;
+  overflow: visible;
+}
+
+.tw-overview-metrics {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: center;
+}
+
+@media (min-width: 640px) {
+  .tw-overview-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .tw-overview-metrics {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+
+.tw-overview-map {
+  min-height: 100%;
+}
+
+.tw-overview-about > div,
+.tw-overview-platform > div,
+.tw-overview-faq {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tw-overview-platform > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .tw-overview-stage {
+    height: calc(100vh - 11rem);
+    min-height: 500px;
+  }
+
+  .tw-overview-snap {
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tw-overview-stage {
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+  }
+}

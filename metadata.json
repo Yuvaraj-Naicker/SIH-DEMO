@@ -1,0 +1,6 @@
+{
+  "name": "TerraWatch - Environmental Intelligence Platform",
+  "description": "Location-specific environmental monitoring, geospatial mapping, risk intelligence, sensor network topology, and early warning platform for Mumbai, Kerala, Chennai, and Puducherry.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
