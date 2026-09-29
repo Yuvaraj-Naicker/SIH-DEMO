@@ -7,6 +7,23 @@ html.dark body {
   color: #f8fafc;
 }
 
+/* Scoped Black Typography for the PCB Section */
+.pcb-section {
+  color: #000000 !important;
+}
+
+.pcb-section h1,
+.pcb-section h2,
+.pcb-section h3,
+.pcb-section h4,
+.pcb-section p,
+.pcb-section label,
+.pcb-section td,
+.pcb-section th,
+.pcb-section input {
+  color: #000000 !important;
+}
+
 /* Leaflet Custom Marker Resets */
 .leaflet-div-icon.custom-node-marker,
 .leaflet-div-icon.packet-pulse-marker {

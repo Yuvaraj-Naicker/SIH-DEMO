@@ -1,0 +1,543 @@
+export interface PCBComponentMeta {
+  id: string;
+  name: string;
+  designator: string;
+  category: 'mcu' | 'rf' | 'sensor' | 'power' | 'connector' | 'passive' | 'indicator';
+  package: string;
+  description: string;
+  specs: Record<string, string>;
+  nets: string[];
+  pos: [number, number, number]; // [x, y, z] in 3D scene units
+  size: [number, number, number]; // [w, h, d]
+  pinCount?: number;
+  highlightColor?: string;
+}
+
+export interface BoardSpec {
+  dimensions: string;
+  thickness: string;
+  layers: string;
+  copperWeight: string;
+  surfaceFinish: string;
+  solderMask: string;
+  radiosCount: number;
+  batteryType: string;
+  processor: string;
+  cellularModem: string;
+  loraTransceiver: string;
+}
+
+export const ROOT_BOARD_SPEC: BoardSpec = {
+  dimensions: '137.5 × 77.5 mm',
+  thickness: '1.6 mm',
+  layers: '4-Layer High-Density FR-4',
+  copperWeight: '1 oz Outer / 2 oz Ground & Power Plane',
+  surfaceFinish: 'ENIG (Electroless Nickel Immersion Gold)',
+  solderMask: 'Matte Forest Green (High UV & Moisture Tolerance)',
+  radiosCount: 3, // LoRa, NB-IoT, USB-Serial
+  batteryType: '18650 Li-ion 3.7V / Solar 6V Auxiliary Ingress',
+  processor: 'ESP32-S3-WROOM-1-N8 (Dual-Core 240MHz)',
+  cellularModem: 'Quectel BG95-M3 (NB-IoT / LTE-M / GNSS)',
+  loraTransceiver: 'Semtech SX1276 (IN865 / 868 / 915 MHz)',
+};
+
+export const ROOT_NODE_COMPONENTS: PCBComponentMeta[] = [
+  {
+    id: 'esp32-mcu',
+    name: 'ESP32-S3-WROOM-1-N8',
+    designator: 'U1',
+    category: 'mcu',
+    package: 'Castellated SMD Module (18×25.5mm)',
+    description: 'The primary brain of the gateway node. Dual-core module with on-board antenna. Runs embedded Edge AI algorithms for hydrological risk classification, manages SPI to the LoRa radio, UART to the cellular modem, local I2C sensor bus, and emergency sirens.',
+    specs: {
+      'Core Architecture': 'Xtensa® 32-bit LX7 Dual-Core @ up to 240 MHz',
+      'AI Acceleration': 'Vector instruction extensions for TinyML inference',
+      'Memory': '8 MB Octal SPI Flash, 512 KB SRAM, 384 KB ROM',
+      'RF Capabilities': '2.4 GHz Wi-Fi (802.11 b/g/n) + Bluetooth 5 (LE)',
+      'Subsystems Managed': 'SX1276 SPI, BG95-M3 UART, J1 I2C, Alarm PWM',
+      'Power Profile': '3.0V – 3.6V (40µA in Deep Sleep mode)',
+    },
+    nets: ['3V3_MCU', 'GND', 'EN', 'IO0', 'SPI_SCK', 'SPI_MOSI', 'SPI_MISO', 'LORA_NSS', 'LORA_DIO0', 'UART_TXD1', 'UART_RXD1', 'I2C_SDA', 'I2C_SCL', 'BUZZER_PWM'],
+    pos: [-1.8, 0.16, -0.6],
+    size: [2.6, 0.16, 2.0],
+    pinCount: 44,
+    highlightColor: '#38bdf8',
+  },
+  {
+    id: 'bg95-modem',
+    name: 'Quectel BG95-M3 LTE-M / NB-IoT Modem',
+    designator: 'U5',
+    category: 'rf',
+    package: 'LGA-102 (23.6×19.9×2.2mm)',
+    description: 'Ultra-compact multimode LPWA cellular modem. Connects the flood monitoring station directly to cloud analytics over NB-IoT and LTE-M networks, with fallback to GPRS. Features integrated GNSS for geographic location tracking.',
+    specs: {
+      'Cellular Bands': 'Cat M1 / Cat NB2 / EGPRS multi-band',
+      'Peak Throughput': '588 kbps (DL) / 1119 kbps (UL) under LTE-M',
+      'Peak Burst Current': '~2.0 A (buffered by 3300 µF rail capacitor)',
+      'Interface to MCU': 'UART via TXS0102 bidirectional level shifter',
+      'Satellite GNSS': 'GPS, GLONASS, BeiDou, Galileo, QZSS',
+      'Operating Voltage': '3.3V – 4.3V (Typ. 3.8V VBAT)',
+    },
+    nets: ['VBAT_BB', 'VCC_EXT_1V8', 'MDM_TXD', 'MDM_RXD', 'PWRKEY', 'MDM_RST', 'SIM_DATA', 'SIM_CLK', 'RF2_ANT_CELL', 'GND_SHIELD'],
+    pos: [1.2, 0.18, 0.6],
+    size: [2.4, 0.18, 2.0],
+    pinCount: 102,
+    highlightColor: '#f59e0b',
+  },
+  {
+    id: 'sx1276-lora',
+    name: 'Semtech SX1276 LoRa Transceiver',
+    designator: 'U4',
+    category: 'rf',
+    package: 'SMD Module / QFN-28 (16×16mm)',
+    description: 'Long-range, ultra-low power sub-GHz transceiver. Receives high-fidelity sensor telemetry packets from remote river-gauge and rainfall leaf nodes across the river catchment basin via the Indian 865-867 MHz frequency band.',
+    specs: {
+      'Frequency Coverage': '865 – 867 MHz (IN865) / 915 MHz / 433 MHz',
+      'RF Sensitivity': 'Down to -148 dBm with spreading factor SF12',
+      'Maximum Output Power': '+20 dBm (100 mW) High-efficiency PA',
+      'Host Controller Interface': '4-Wire SPI (up to 10 MHz) + DIO0 line',
+      'Packet Reception': 'Interrupt-driven via DIO0 on preamble lock',
+      'Decoupling': 'Dedicated 100 nF low-ESR ceramic capacitor',
+    },
+    nets: ['LORA_SCK', 'LORA_MISO', 'LORA_MOSI', 'LORA_NSS', 'LORA_DIO0', 'LORA_RST', '3V3_RF', 'RF1_LORA_ANT', 'GND'],
+    pos: [3.2, 0.16, -1.2],
+    size: [1.8, 0.16, 1.8],
+    pinCount: 28,
+    highlightColor: '#10b981',
+  },
+  {
+    id: 'rf1-connector',
+    name: 'LoRa Antenna SMA Edge Connector',
+    designator: 'RF1',
+    category: 'connector',
+    package: '5-Pin Edge-Launch SMA Female (50Ω)',
+    description: 'High-frequency 50-ohm RF port connecting the external omnidirectional fiberglass dipole antenna. Positioned on the top-right perimeter of the PCB to isolate sub-GHz RF from cellular harmonics.',
+    specs: {
+      'Impedance': '50 Ω Matched Transmission Line',
+      'Frequency Range': 'DC to 6.0 GHz',
+      'Center Conductor': 'Gold-Plated Beryllium Copper Pin',
+      'Isolation Distance': '>65 mm physically separated from RF2',
+    },
+    nets: ['RF1_LORA_ANT', 'GND_EARTH'],
+    pos: [3.4, 0.22, -2.9],
+    size: [0.9, 0.35, 0.9],
+    pinCount: 5,
+    highlightColor: '#34d399',
+  },
+  {
+    id: 'rf2-connector',
+    name: 'Cellular Antenna SMA Edge Connector',
+    designator: 'RF2',
+    category: 'connector',
+    package: '5-Pin Edge-Launch SMA Female (50Ω)',
+    description: 'Cellular 4G/NB-IoT antenna receptacle. Placed on the bottom-center board edge to ensure maximum electromagnetic decoupling from the LoRa reception chain.',
+    specs: {
+      'Impedance': '50 Ω Coplanar Waveguide with Ground',
+      'Bandwidth': '698 MHz – 2690 MHz Wideband',
+      'VSWR': '< 1.3:1 at resonant peaks',
+      'Coupling Separation': 'Opposite side of board from LoRa path',
+    },
+    nets: ['RF2_ANT_CELL', 'GND_EARTH'],
+    pos: [-0.6, 0.22, 2.8],
+    size: [0.9, 0.35, 0.9],
+    pinCount: 5,
+    highlightColor: '#fbbf24',
+  },
+  {
+    id: 'rf3-connector',
+    name: 'Auxiliary / GNSS Antenna SMA Connector',
+    designator: 'RF3',
+    category: 'connector',
+    package: '5-Pin Edge-Launch SMA Female (50Ω)',
+    description: 'Secondary RF port dedicated for active GNSS/GPS patch antenna or auxiliary diversity antenna on the bottom-right corner.',
+    specs: {
+      'Impedance': '50 Ω Controlled',
+      'Frequency': '1575.42 MHz (L1-GPS / BeiDou / GLONASS)',
+      'LNA Bias': 'Internal 3.3V Phantom power for active patch',
+    },
+    nets: ['RF3_GNSS_ANT', 'GND_EARTH'],
+    pos: [5.4, 0.22, 1.8],
+    size: [0.9, 0.35, 0.9],
+    pinCount: 5,
+    highlightColor: '#60a5fa',
+  },
+  {
+    id: 'sim-socket',
+    name: 'Push-Push Micro-SIM Card Socket',
+    designator: 'SIM1',
+    category: 'connector',
+    package: '6-Pin Push-Push SMT (15×14mm)',
+    description: 'Gold-plated industrial push-push Micro-SIM (3FF) socket directly interfaced to the BG95-M3 cellular baseband processor with internal transient ESD clamping.',
+    specs: {
+      'Form Factor': 'Micro-SIM (3FF, 15 × 12 mm)',
+      'Interface': 'SIM_CLK, SIM_DATA, SIM_RST, SIM_VDD (1.8V/3V)',
+      'Insertion Mechanism': 'Stainless steel push-push latch with card detect',
+      'Durability': '5,000+ insertion/removal cycles',
+    },
+    nets: ['SIM_VDD', 'SIM_RST', 'SIM_CLK', 'SIM_DATA', 'SIM_GND'],
+    pos: [3.4, 0.12, 1.2],
+    size: [1.6, 0.14, 1.5],
+    pinCount: 6,
+    highlightColor: '#fb7185',
+  },
+  {
+    id: 'usb-c-receptacle',
+    name: '16-Pin USB Type-C Receptacle',
+    designator: 'USB-C',
+    category: 'connector',
+    package: '16-Pin SMT Mid-Mount Shielded',
+    description: 'Robust USB Type-C interface providing 5V DC charging power and full-duplex UART serial data. Integrated dual 5.1 kΩ pull-down resistors on CC1 and CC2 configure the node as an industry-standard UFP (Upstream Facing Port) power sink.',
+    specs: {
+      'Standard': 'USB 2.0 (High Speed compliant / 480 Mbps)',
+      'Configuration': 'Sink role (CC1/CC2 5.1kΩ pull-downs to GND)',
+      'Input Voltage': '5.0V ± 5% VBUS',
+      'Shell Anchors': '4x through-hole tabs for mechanical shear resistance',
+    },
+    nets: ['VBUS_5V', 'USB_DP', 'USB_DM', 'CC1_5K1', 'CC2_5K1', 'GND_SHIELD'],
+    pos: [-5.6, 0.18, -0.6],
+    size: [1.1, 0.28, 0.9],
+    pinCount: 16,
+    highlightColor: '#a78bfa',
+  },
+  {
+    id: 'ch340k-bridge',
+    name: 'CH340K USB-to-UART Serial Bridge',
+    designator: 'U9',
+    category: 'mcu',
+    package: 'ESSOP-10 (3.9×4.9mm)',
+    description: 'Compact USB-to-serial converter linking the USB-C controller to the ESP32 UART. Incorporates an integrated internal clock generator to eliminate crystal components and routes DTR/RTS lines to the automatic programming circuit.',
+    specs: {
+      'Clock': 'Internal built-in oscillator (no crystal required)',
+      'Transfer Speeds': '50 bps to 2 Mbps hardware UART',
+      'Handshake Lines': 'DTR, RTS driving automated reset / boot',
+      'Logic Voltage': '3.3V TTL compatible',
+    },
+    nets: ['USB_DP', 'USB_DM', 'TXD_TO_ESP', 'RXD_FROM_ESP', 'DTR_PULSE', 'RTS_PULSE', '3V3', 'GND'],
+    pos: [-3.8, 0.1, -0.5],
+    size: [0.8, 0.1, 0.6],
+    pinCount: 10,
+    highlightColor: '#c084fc',
+  },
+  {
+    id: 'autoreset-circuit',
+    name: 'Auto-Reset Pair (Q1 & Q2)',
+    designator: 'Q1, Q2',
+    category: 'passive',
+    package: 'Dual SOT-23 NPN Transistors',
+    description: 'Dual S8050 NPN transistor cross-latch circuit. Enables the programming workstation to assert DTR and RTS signals to automatically put the ESP32 into bootloader mode without needing manual button actuation.',
+    specs: {
+      'Components': '2x S8050 NPN (40V, 500mA Vce/Ic)',
+      'Resistor Bias': '10 kΩ base resistors & 10 kΩ EN/IO0 pull-ups',
+      'Trigger Condition': 'DTR=0, RTS=1 -> EN=0 (Reset); DTR=1, RTS=0 -> IO0=0 (Boot)',
+    },
+    nets: ['DTR_PULSE', 'RTS_PULSE', 'ESP_EN', 'ESP_IO0', '3V3'],
+    pos: [-3.8, 0.08, -1.8],
+    size: [0.6, 0.08, 0.4],
+    pinCount: 6,
+    highlightColor: '#818cf8',
+  },
+  {
+    id: 'sw1-switch',
+    name: 'Tactile Switch: Hardware Reset',
+    designator: 'SW1',
+    category: 'connector',
+    package: '4-Pin SMD Tactile Push Button (3×4mm)',
+    description: 'Tactile momentary push button wired directly to the ESP32-S3 EN pin. Depressing pulls the line to ground to initiate a hard processor reboot during testing or field commissioning.',
+    specs: {
+      'Switch Rating': '50 mA @ 12V DC',
+      'Actuation Force': '160 ± 30 gf',
+      'Debounce Support': '10 kΩ pull-up with 100 nF RC filter',
+    },
+    nets: ['ESP_EN', 'GND'],
+    pos: [-0.1, 0.1, -1.8],
+    size: [0.6, 0.12, 0.5],
+    pinCount: 4,
+    highlightColor: '#f43f5e',
+  },
+  {
+    id: 'sw2-switch',
+    name: 'Tactile Switch: ROM Bootloader',
+    designator: 'SW2',
+    category: 'connector',
+    package: '4-Pin SMD Tactile Push Button (3×4mm)',
+    description: 'Manual bootloader entry button pulling GPIO0 low during power-up or reset, allowing emergency recovery and manual UART flashing over the USB port.',
+    specs: {
+      'Switch Rating': '50 mA @ 12V DC',
+      'Actuation Type': 'Normally Open Momentary SPST',
+      'Circuit Link': 'Direct line to ESP32-S3 IO0 pin',
+    },
+    nets: ['ESP_IO0', 'GND'],
+    pos: [1.8, 0.1, -2.1],
+    size: [0.6, 0.12, 0.5],
+    pinCount: 4,
+    highlightColor: '#f59e0b',
+  },
+  {
+    id: 'en-filter',
+    name: 'EN RC Filter & Pull-Up Network',
+    designator: 'R_EN / C_EN',
+    category: 'passive',
+    package: '0603 SMD Resistor (10 kΩ) & Capacitor (100 nF)',
+    description: 'Hardware protection network on the ESP32 EN enable line. Eliminates spurious resets, filters noisy inductive spikes, and smooths power-on sequencing for robust field start-ups.',
+    specs: {
+      'Resistor': '10 kΩ ±1% SMD 0603',
+      'Capacitor': '100 nF 50V X7R ceramic',
+      'RC Time Constant': '1.0 millisecond',
+    },
+    nets: ['ESP_EN', '3V3', 'GND'],
+    pos: [-0.9, 0.06, -1.8],
+    size: [0.4, 0.05, 0.3],
+    pinCount: 4,
+    highlightColor: '#94a3b8',
+  },
+  {
+    id: 'txs0102-shifter',
+    name: 'TXS0102 Bidirectional Level Shifter',
+    designator: 'U7',
+    category: 'passive',
+    package: 'VSSOP-8 (2.0×3.1mm)',
+    description: 'Dual-bit bidirectional voltage-level translator. Bridges the Quectel BG95-M3 modem 1.8V UART ports with the ESP32-S3 3.3V digital I/O lines without needing a direction control signal.',
+    specs: {
+      'VCCA Port (Modem Side)': '1.8 V Nominal (1.65V – 3.6V)',
+      'VCCB Port (MCU Side)': '3.3 V Nominal (2.3V – 5.5V)',
+      'Maximum Data Rate': '24 Mbps (Push-Pull)',
+      'Architecture': 'Auto-direction sensing with pass-gate FETs',
+    },
+    nets: ['1V8_MODEM', '3V3_MCU', 'MDM_TX_1V8', 'MDM_RX_1V8', 'ESP_TX_3V3', 'ESP_RX_3V3', 'GND'],
+    pos: [0.2, 0.08, 0.2],
+    size: [0.5, 0.08, 0.4],
+    pinCount: 8,
+    highlightColor: '#14b8a6',
+  },
+  {
+    id: 'bulk-cap',
+    name: '3300 µF Low-ESR Bulk Capacitor',
+    designator: 'C_BULK',
+    category: 'passive',
+    package: 'Radial Can / Polymer D=10mm',
+    description: 'Ultra-low ESR 3300µF storage capacitor positioned right next to the cellular modem power rail. Supplies high-transient 2-amp current spikes during LTE uplink transmission bursts to prevent brownout resets.',
+    specs: {
+      'Capacitance': '3300 µF',
+      'Voltage Rating': '6.3V – 10V DC',
+      'ESR': '< 18 mΩ at 100 kHz',
+      'Burst Capability': 'Up to 2.0 A peak pulses',
+    },
+    nets: ['VBAT_MODEM', 'GND'],
+    pos: [0.0, 0.35, 1.8],
+    size: [1.1, 0.7, 1.1],
+    pinCount: 2,
+    highlightColor: '#38bdf8',
+  },
+  {
+    id: 'p1-battery-conn',
+    name: 'P1 2-Pin Battery Connector (18650 Ingress)',
+    designator: 'P1',
+    category: 'power',
+    package: 'JST-PH 2.0mm Polarized Shrouded',
+    description: 'Dedicated 2-pin polarized connector for the external high-capacity 18650 Li-ion battery pack. Engineered with reverse-keying to prevent dangerous accidental polarity inversion.',
+    specs: {
+      'Compatible Battery': 'Single Cell 18650 / 21700 (3.7V nominal, 4.2V max)',
+      'Pitch': '2.0 mm JST-PH',
+      'Max Continuous Current': '2.5 A',
+      'Retention Type': 'Friction Lock Header with Polarized Key',
+    },
+    nets: ['VBAT_BATT+', 'VBAT_BATT-'],
+    pos: [-4.2, 0.22, 1.5],
+    size: [1.2, 0.35, 0.9],
+    pinCount: 2,
+    highlightColor: '#f97316',
+  },
+  {
+    id: 'cn3065-charger',
+    name: 'CN3065 Solar & USB Lithium-Ion Charger',
+    designator: 'U3',
+    category: 'power',
+    package: 'eSOP-8 with Thermal Pad',
+    description: 'Autonomous linear lithium-ion charger with integrated internal adaptive power management for solar harvesting. Automatically negotiates between 5V USB-C power and 4.4V–6V solar panels to trickle or fast-charge the 18650 cell.',
+    specs: {
+      'Input Voltage Range': '4.4V to 6.0V DC',
+      'Charging Algorithm': 'CC/CV (Constant Current / Constant Voltage)',
+      'Regulation Voltage': '4.2V ± 1%',
+      'Charge Current': '500 mA (program pin R_PROG configurable to 1A)',
+      'Solar MPPT': 'Internal voltage feedback optimizes solar panel power point',
+    },
+    nets: ['VIN_SOLAR', 'VBUS_5V', 'VBAT_CHRG', 'STAT_LED', 'GND'],
+    pos: [-3.2, 0.08, 0.5],
+    size: [0.7, 0.1, 0.5],
+    pinCount: 8,
+    highlightColor: '#eab308',
+  },
+  {
+    id: 'dw01a-protection',
+    name: 'DW01A + FS8205A Battery Protection IC',
+    designator: 'U8',
+    category: 'power',
+    package: 'SOT-23-6 + TSSOP-8 Combo',
+    description: 'Automotive-grade battery safety supervisor. Constantly monitors the 18650 cell voltage and current draw, disconnecting the dual power MOSFETs instantly upon over-charge, over-discharge, or short circuit.',
+    specs: {
+      'Overcharge Cutoff': '4.30 V ± 0.05 V (Release 4.10 V)',
+      'Overdischarge Cutoff': '2.40 V ± 0.08 V (Release 3.00 V)',
+      'Short Circuit Protection': 'Built-in auto-recovery latch',
+      'Dual MOSFET': 'FS8205A low RDS(on) N-channel pair (<25mΩ)',
+    },
+    nets: ['VBAT_CELL', 'VBAT_LOAD', 'GATE_OD', 'GATE_OC', 'GND'],
+    pos: [-5.2, 0.08, 1.4],
+    size: [0.6, 0.08, 0.5],
+    pinCount: 14,
+    highlightColor: '#ef4444',
+  },
+  {
+    id: 'd1-schottky',
+    name: '1N5819 Schottky Blocking Diode',
+    designator: 'D1',
+    category: 'power',
+    package: 'SMA / DO-214AC',
+    description: 'Low-forward-voltage Schottky diode installed in series with the solar panel positive line. Prevents battery discharge back into solar cells at night or during dark storm conditions.',
+    specs: {
+      'Forward Voltage Drop': '0.36 V @ 1 A (low thermal loss)',
+      'Peak Repetitive Reverse': '40 V',
+      'Forward Surge Current': '25 A (8.3 ms half-wave)',
+    },
+    nets: ['SOLAR_RAW+', 'V_CHARGER_IN'],
+    pos: [-2.6, 0.1, 1.5],
+    size: [0.7, 0.12, 0.4],
+    pinCount: 2,
+    highlightColor: '#fb923c',
+  },
+  {
+    id: 'ams1117-ldo',
+    name: 'AMS1117-3.3 Linear Voltage Regulator',
+    designator: 'U2',
+    category: 'power',
+    package: 'SOT-223 with Tab',
+    description: 'High-current 3.3V fixed low-dropout linear regulator. Drops the single-cell 18650 voltage (3.5V–4.2V) to an ultra-stable, ripple-free 3.3V rail powering the ESP32-S3, SX1276, and all digital peripherals.',
+    specs: {
+      'Output Voltage': '3.3V Fixed ±1.5%',
+      'Max Continuous Current': '800 mA – 1000 mA',
+      'Dropout Voltage': '1.1V at full load (1A)',
+      'Protection': 'Internal thermal shutdown and current limit',
+    },
+    nets: ['VBAT_SYS', '3V3_STABLE', 'GND'],
+    pos: [1.8, 0.12, -2.8],
+    size: [0.9, 0.16, 0.7],
+    pinCount: 4,
+    highlightColor: '#10b981',
+  },
+  {
+    id: 'buzzer-siren',
+    name: 'Buzzer with Transistor Driver',
+    designator: 'BUZZER1',
+    category: 'indicator',
+    package: '9×9mm SMD Audio Transducer + Driver',
+    description: 'Piezoelectric high-decibel acoustic buzzer driven by a dedicated switching transistor. Commanded by the ESP32-S3 edge AI engine to emit loud audio patterns during critical hydrological alerts or evacuation triggers.',
+    specs: {
+      'Sound Pressure Level': '85-90 dB(A) @ 10cm / 2730 Hz',
+      'Driving Signal': '2.73 kHz square wave via PWM pin',
+      'Switching Transistor': 'NPN S8050 with diode flyback protection',
+      'Operating Voltage': '3.3V – 5.0V',
+    },
+    nets: ['GPIO_ALARM', 'BUZ_DRIVE', '3V3', 'GND'],
+    pos: [-5.0, 0.25, 2.3],
+    size: [1.0, 0.35, 1.0],
+    pinCount: 2,
+    highlightColor: '#ec4899',
+  },
+  {
+    id: 'status-leds',
+    name: 'Status Diagnostic LEDs (LED1 - LED3)',
+    designator: 'LED1, LED2, LED3',
+    category: 'indicator',
+    package: '0805 Surface Mount LEDs',
+    description: 'Tri-color hardware status indicators visible on the enclosure: LED1 (Green) monitors main 3.3V power rail; LED2 (Blue) signals CN3065 battery charging; LED3 (Amber/Red) displays LoRa mesh packet activity & alert notifications.',
+    specs: {
+      'LED1 (Green)': 'System 3.3V Power Good Indicator',
+      'LED2 (Blue)': 'CN3065 Solar/USB Charge in Progress',
+      'LED3 (Amber/Red)': 'Packet TX/RX Pulse & Fault/Flood Warning',
+      'Current Draw': '1.8 mA each with 1 kΩ ballast resistors',
+    },
+    nets: ['3V3', 'CHRG_IND', 'GPIO_PULSE', 'GND'],
+    pos: [2.6, 0.08, -2.0],
+    size: [0.9, 0.06, 0.3],
+    pinCount: 6,
+    highlightColor: '#38bdf8',
+  },
+  {
+    id: 'j1-sensor-port',
+    name: 'J1 4-Pin I2C Sensor Interface Header',
+    designator: 'J1',
+    category: 'connector',
+    package: '4-Pin 2.54mm Pitch Through-Hole Header',
+    description: 'External I2C sensor interface header. Provides power, ground, and I2C lines (SDA/SCL) with onboard pull-ups for local environmental sensors at the gateway station (e.g. atmospheric pressure, ambient temperature, humidity).',
+    specs: {
+      'Pin Configuration': 'Pin 1: 3.3V | Pin 2: GND | Pin 3: SDA | Pin 4: SCL',
+      'Pitch': '2.54 mm (0.100 inch) Standard',
+      'Pull-up Resistors': 'Dual 4.7 kΩ onboard pull-ups to 3.3V',
+      'Max Cable Length': 'Up to 3 meters with I2C buffer',
+    },
+    nets: ['3V3_SENS', 'GND', 'I2C0_SDA', 'I2C0_SCL'],
+    pos: [-4.6, 0.18, -2.0],
+    size: [0.4, 0.35, 1.4],
+    pinCount: 4,
+    highlightColor: '#eab308',
+  }
+];
+
+export interface SystemBlock {
+  title: string;
+  subtitle: string;
+  iconName: string;
+  color: string;
+  components: string[];
+  purpose: string;
+}
+
+export const ROOT_SYSTEM_BLOCKS: SystemBlock[] = [
+  {
+    title: 'Microcontroller & Edge AI',
+    subtitle: 'The Core Intelligence Engine',
+    iconName: 'Cpu',
+    color: 'from-blue-500/20 to-cyan-500/10 border-cyan-500/40 text-cyan-400',
+    components: ['ESP32-S3-WROOM-1-N8', 'SW1 (Reset)', 'SW2 (Boot)', 'EN Network (10kΩ + 100nF)'],
+    purpose: 'Dual-core 240MHz MCU executing real-time flood warning inference models, managing multi-hop LoRa packet routing, cellular AT commands, and power sleep cycles.'
+  },
+  {
+    title: 'LoRa Wireless Mesh',
+    subtitle: 'Sub-GHz Long Range Receiver',
+    iconName: 'Radio',
+    color: 'from-emerald-500/20 to-teal-500/10 border-emerald-500/40 text-emerald-400',
+    components: ['SX1276 Transceiver', 'RF1 SMA Connector', '100nF Bypass Capacitors'],
+    purpose: 'Listens to telemetry packets from distributed flood and rainfall leaf nodes up to 15km away across river basins. Operates on India IN865 license-free spectrum.'
+  },
+  {
+    title: 'Cellular Cloud Uplink',
+    subtitle: 'High-Reliability NB-IoT / LTE-M',
+    iconName: 'Wifi',
+    color: 'from-amber-500/20 to-orange-500/10 border-amber-500/40 text-amber-400',
+    components: ['Quectel BG95-M3', 'SIM1 Socket', 'TXS0102 Shifter', 'RF2 SMA', '3300µF Bulk Cap'],
+    purpose: 'Transmits edge AI processed flood alerts, crest times, and sensor telemetry to cloud servers and SMS notification systems even during local internet disruptions.'
+  },
+  {
+    title: 'Power & Battery Subsystem',
+    subtitle: 'Off-Grid Renewable Energy',
+    iconName: 'BatteryCharging',
+    color: 'from-green-500/20 to-lime-500/10 border-green-500/40 text-green-400',
+    components: ['18650 Battery (P1)', 'CN3065 Solar Charger', 'DW01A+FS8205A Protection', '1N5819 Diode', 'AMS1117-3.3 LDO'],
+    purpose: 'Regulates solar panel and USB-C inputs to charge 18650 Li-ion battery, provides overcharge/overdischarge protection, and delivers stable 3.3V rail with 3300µF reserve.'
+  },
+  {
+    title: 'USB Programming & Debug',
+    subtitle: 'Direct Host Interfacing',
+    iconName: 'Usb',
+    color: 'from-purple-500/20 to-fuchsia-500/10 border-purple-500/40 text-purple-400',
+    components: ['16-pin Type-C', 'CH340K Bridge', 'Q1/Q2 S8050 Auto-Reset', '10kΩ Base Pull-ups'],
+    purpose: 'Plug-and-play USB-C connectivity for flashing firmware, streaming debugging console logs, and charging without needing external FTDI or JTAG adapters.'
+  },
+  {
+    title: 'Alerts, Indicators & Sensors',
+    subtitle: 'Human & Environmental I/O',
+    iconName: 'AlertTriangle',
+    color: 'from-rose-500/20 to-red-500/10 border-rose-500/40 text-rose-400',
+    components: ['BUZZER1 Piezo Siren', 'LED1–LED3 Status Triad', 'J1 I2C 4-Pin Sensor Port'],
+    purpose: 'Audible emergency siren, visual diagnostic status indicators (Power, Charging, Packet Radio Activity), and modular plug for local meteorological and water probes.'
+  }
+];

@@ -23,322 +23,45 @@ import {
   BatteryCharging,
   Usb,
   Microchip,
+  Wifi,
+  ShieldCheck,
+  Power,
+  GitBranch,
+  Search,
+  ExternalLink,
 } from 'lucide-react';
 import { LocationConfig } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import BorderGlow from './BorderGlow';
+import {
+  ROOT_BOARD_SPEC,
+  ROOT_NODE_COMPONENTS,
+  ROOT_SYSTEM_BLOCKS,
+  PCBComponentMeta,
+  SystemBlock,
+} from '../data/pcbData';
 
 interface PCBViewProps {
   location: LocationConfig;
 }
 
-export interface PCBComponentMeta {
-  id: string;
-  name: string;
-  designator: string;
-  category: 'mcu' | 'rf' | 'sensor' | 'power' | 'connector' | 'passive' | 'indicator';
-  package: string;
-  description: string;
-  specs: { [key: string]: string };
-  nets: string[];
-  pos: [number, number, number];
-  size: [number, number, number];
-}
-
-const PCB_COMPONENTS: PCBComponentMeta[] = [
-  {
-    id: 'u9-mcu',
-    name: 'Dual-Core Low-Power Microcontroller',
-    designator: 'U9',
-    category: 'mcu',
-    package: 'QFN-56 (7x7mm)',
-    description: 'High-performance 32-bit dual-core processor executing FreeRTOS, edge hydrograph crest forecasting algorithms, and sub-GHz mesh routing protocols.',
-    specs: {
-      'Clock Frequency': '133 MHz Dual-Core',
-      'Operating Voltage': '3.3V DC (1.8V Core)',
-      'SRAM': '264 KB On-Chip',
-      'Flash Memory': '16 MB QSPI External',
-      'Deep Sleep Power': '18 uA Hibernate Mode',
-      'Hardware Interfaces': 'SPI, I2C x2, UART x2, 12-bit ADC',
-    },
-    nets: ['3V3_MCU', 'GND', 'LORA_SCK', 'LORA_MISO', 'LORA_MOSI', 'I2C0_SDA', 'I2C0_SCL', 'ADC_BATT'],
-    pos: [-1.4, 0.12, -0.6],
-    size: [1.2, 0.14, 1.2],
-  },
-  {
-    id: 'u5-lora',
-    name: 'Sub-GHz IN865 LoRa Transceiver Module',
-    designator: 'U5',
-    category: 'rf',
-    package: 'LCC-16 Shielded (16x16mm)',
-    description: 'Semtech SX1262-based long-range RF module tuned for India IN865-867 MHz WPC de-licensed band. Provides up to 15km line-of-sight and 1.5km dense foliage penetration.',
-    specs: {
-      'RF Band': '865 – 867 MHz (IN865)',
-      'TX Power': '+22 dBm max (Configured for +14 dBm)',
-      'Sensitivity': '-148 dBm @ SF12 / 125 kHz',
-      'Spreading Factor': 'SF7 to SF12 (Adaptive)',
-      'Current Consumption': '4.6 mA RX, 118 mA @ +22 dBm TX',
-      'RF Front-End': 'Integrated Balun + U.FL IPEX & Pad',
-    },
-    nets: ['LORA_NSS', 'LORA_BUSY', 'LORA_DIO1', 'LORA_RESET', 'RF_ANT', 'GND_SHIELD', '3V3_RF'],
-    pos: [0.6, 0.16, -0.6],
-    size: [1.5, 0.22, 1.5],
-  },
-  {
-    id: 'u6-sensor',
-    name: 'Precision Barometric & Hydrometric Multisensor',
-    designator: 'U6',
-    category: 'sensor',
-    package: 'LGA-8 (2.5x2.5mm)',
-    description: 'Calibrated environmental sensor providing atmospheric pressure, rapid barometric drop detection for cyclone prediction, and temperature/humidity compensation.',
-    specs: {
-      'Pressure Range': '300 – 1100 hPa (+-0.12 hPa)',
-      'Relative Humidity': '0 – 100% (+-1.5% RH)',
-      'Temperature Range': '-40 to +85 C (+-0.5 C)',
-      'Pressure RMS Noise': '0.2 Pa (equiv. to 1.7 cm altitude)',
-      'Interface': 'I2C Fast-Mode Plus (1 MHz)',
-      'Supply Current': '3.4 uA @ 1 Hz sampling',
-    },
-    nets: ['3V3_SENS', 'I2C0_SDA', 'I2C0_SCL', 'GND'],
-    pos: [1.9, 0.08, -0.6],
-    size: [0.6, 0.08, 0.6],
-  },
-  {
-    id: 'u7-shifter',
-    name: 'Bi-directional I2C Level Translator & ESD Guard',
-    designator: 'U7',
-    category: 'passive',
-    package: 'SOT-23-6',
-    description: 'High-speed level shifting interface between 3.3V core MCU and external 5V/3.3V digital probe sensors with +-15kV IEC ESD discharge protection.',
-    specs: {
-      'Channel Count': '2-Bit Open-Drain',
-      'Data Rate': 'Up to 24 Mbps Push-Pull / 2 Mbps OD',
-      'ESD Rating': '+-15 kV Air Discharge',
-      'Operating Voltage': '1.65V to 5.5V dual-rail',
-    },
-    nets: ['VCCA_3V3', 'VCCB_5V', 'SDA_A', 'SDA_B', 'SCL_A', 'SCL_B'],
-    pos: [1.1, 0.07, -0.05],
-    size: [0.4, 0.08, 0.25],
-  },
-  {
-    id: 'u1-flash',
-    name: '16MB Low-Power QSPI NOR Data Logger',
-    designator: 'U1',
-    category: 'mcu',
-    package: 'SOIC-8 (150mil)',
-    description: 'Non-volatile industrial storage for local circular-buffer telemetry logging during prolonged communication blackouts or mesh partitioning.',
-    specs: {
-      'Density': '128 Mbit (16 Megabytes)',
-      'Endurance': '100,000 Program/Erase Cycles',
-      'Retention': '20 Years @ 85 C',
-      'Bus Interface': 'Dual/Quad SPI @ 104 MHz',
-    },
-    nets: ['QSPI_CLK', 'QSPI_CS', 'QSPI_IO0', 'QSPI_IO1', 'QSPI_IO2', 'QSPI_IO3', '3V3_MEM'],
-    pos: [-3.0, 0.1, -0.6],
-    size: [0.9, 0.12, 0.8],
-  },
-  {
-    id: 'ldo1-regulator',
-    name: 'Ultra-Low Quiescent 3.3V LDO Regulator',
-    designator: 'LDO1',
-    category: 'power',
-    package: 'SOT-23-5',
-    description: 'Automotive-grade low-dropout regulator providing clean 3.3V rail from solar capacitor / LiFePO4 battery with under 1.2uA no-load quiescent current.',
-    specs: {
-      'Output Voltage': '3.3V Fixed (+-1.0%)',
-      'Max Output Current': '500 mA Peak',
-      'Dropout Voltage': '130 mV @ 300 mA',
-      'Quiescent Current': '1.1 uA Typical',
-      'PSRR': '70 dB @ 1 kHz',
-    },
-    nets: ['VBAT_IN', 'VOUT_3V3', 'EN_REG', 'GND'],
-    pos: [2.8, 0.08, 0.2],
-    size: [0.4, 0.08, 0.3],
-  },
-  {
-    id: 'd1-diode',
-    name: 'Reverse Polarity Schottky Barrier Diode',
-    designator: 'D1',
-    category: 'power',
-    package: 'SOD-123',
-    description: 'High-surge protection Schottky diode safeguarding the power ingress circuit against accidental solar cell / battery reverse connection.',
-    specs: {
-      'Forward Voltage': '0.34V @ 1.0A',
-      'Reverse Standoff': '40V DC',
-      'Peak Surge Current': '5.5A (8.3ms pulse)',
-    },
-    nets: ['SOLAR_RAW', 'SOLAR_PROT'],
-    pos: [1.8, 0.08, 0.05],
-    size: [0.55, 0.1, 0.28],
-  },
-  {
-    id: 'q1-crystal',
-    name: 'Precision 32.000 MHz Crystal Oscillator',
-    designator: 'Q1',
-    category: 'passive',
-    package: 'SMD-4 (3.2x2.5mm)',
-    description: 'Hermetically sealed quartz resonator providing precision clock timing for SX1262 LoRa packet synchronization and frequency calibration.',
-    specs: {
-      'Frequency': '32.000000 MHz',
-      'Frequency Tolerance': '+-10 ppm @ 25 C',
-      'Temp Stability': '+-15 ppm (-40 to +85 C)',
-      'Load Capacitance': '10 pF',
-    },
-    nets: ['OSC_IN', 'OSC_OUT', 'GND_CRYSTAL'],
-    pos: [0.4, 0.07, 0.05],
-    size: [0.55, 0.08, 0.4],
-  },
-  {
-    id: 'sw1-reset',
-    name: 'Hardware System Reset Tactile Switch',
-    designator: 'SW1',
-    category: 'connector',
-    package: 'SMD-4 Tactile (4x3mm)',
-    description: 'Hermetically sealed tactile micro-switch with hardware debouncing circuitry for field manual rebooting.',
-    specs: {
-      'Operating Force': '160 gf',
-      'Electrical Life': '100,000 Operations',
-      'Contact Rating': '50 mA @ 12V DC',
-    },
-    nets: ['MCU_RESET_N', 'GND'],
-    pos: [-0.6, 0.1, 0.05],
-    size: [0.55, 0.12, 0.4],
-  },
-  {
-    id: 'sw2-boot',
-    name: 'Firmware Flash / Boot Mode Switch',
-    designator: 'SW2',
-    category: 'connector',
-    package: 'SMD-4 Tactile (4x3mm)',
-    description: 'Secondary user interface switch to force bootloader flashing mode or toggle local mesh diagnostic ping mode in the field.',
-    specs: {
-      'Operating Force': '160 gf',
-      'Function': 'Dual-State / Mode Select',
-    },
-    nets: ['MCU_BOOT_SEL', 'GND'],
-    pos: [-3.4, 0.1, 0.0],
-    size: [0.55, 0.12, 0.4],
-  },
-  {
-    id: 'led-group',
-    name: 'Telemetry & Status Indicator LED Triad',
-    designator: 'LED1 / LED2 / LED3',
-    category: 'indicator',
-    package: 'SMD-0805 Triad',
-    description: 'Visual diagnostic indicators showing Power Rail (Emerald), LoRa Packet Hop Transmission (Electric Cyan), and Early Warning Threat Level (Amber/Red).',
-    specs: {
-      'LED1 (Green)': '3.3V Power Rail Active',
-      'LED2 (Cyan)': 'LoRa Mesh RX/TX Heartbeat',
-      'LED3 (Amber/Red)': 'Critical Threat Threshold Tripped',
-      'Drive Method': 'Direct PWM Constant-Current @ 2.5mA',
-    },
-    nets: ['LED_PWR', 'LED_RADIO', 'LED_ALERT', 'GND'],
-    pos: [2.4, 0.07, 0.05],
-    size: [0.8, 0.06, 0.3],
-  },
-  {
-    id: 'usb-c1',
-    name: 'USB Type-C 16-Pin Diagnostics & Ingress Receptacle',
-    designator: 'USB-C1',
-    category: 'connector',
-    package: '16-Pin Mid-Mount Shielded',
-    description: 'Industrial USB-C port for rapid high-speed firmware update, calibrated sensor baseline offset configuration, and internal battery charging.',
-    specs: {
-      'Standard': 'USB 2.0 High-Speed (480 Mbps)',
-      'Durability': '10,000 Mating Cycles',
-      'Shielding': 'Stainless steel outer shell with 4 grounding retention tabs',
-      'ESD Protection': 'TVS Diode Array on D+/D- and CC lines',
-    },
-    nets: ['VBUS_5V', 'USB_DP', 'USB_DM', 'USB_CC1', 'USB_CC2', 'GND_SHIELD'],
-    pos: [3.3, 0.16, -0.65],
-    size: [0.95, 0.26, 0.85],
-  },
-  {
-    id: 'buzzer1',
-    name: 'Piezoelectric Early Warning Flood Siren',
-    designator: 'BUZZER1',
-    category: 'indicator',
-    package: 'SMD Round (9x9mm)',
-    description: 'High-output resonant acoustic transducer triggered automatically when water stage exceeds river danger mark to alert surrounding local residents.',
-    specs: {
-      'Sound Pressure Level': '85 dB(A) @ 10 cm / 2.7 kHz',
-      'Resonant Frequency': '2,730 Hz +-500 Hz',
-      'Operating Voltage': '2.5V to 4.5V Square Wave',
-      'Current Draw': '28 mA during siren cycle',
-    },
-    nets: ['BUZZER_PWM+', 'BUZZER_DRIVE-'],
-    pos: [3.2, 0.22, 1.0],
-    size: [0.95, 0.38, 0.95],
-  },
-  {
-    id: 'j1-header',
-    name: '4-Pin Diagnostic SWD / Debug Connector',
-    designator: 'J1',
-    category: 'connector',
-    package: '1x4 Pin Header (2.54mm pitch)',
-    description: 'Through-hole gold-plated header for direct ARM Serial Wire Debug (SWD), hardware breakpoint tracing, and auxiliary serial telemetry output.',
-    specs: {
-      'Pitch': '2.54 mm (0.1 in)',
-      'Pinout': '3V3 | SWDIO | SWCLK | GND',
-      'Gold Plating': '15 uin ENIG',
-    },
-    nets: ['3V3', 'SWDIO', 'SWCLK', 'GND'],
-    pos: [-3.3, 0.2, 0.65],
-    size: [0.35, 0.35, 1.1],
-  },
-  {
-    id: 'j2-sensors',
-    name: '6-Pin Multi-Sensor Environmental Terminal',
-    designator: 'J2',
-    category: 'connector',
-    package: '1x6 Pin Terminal (2.54mm pitch)',
-    description: 'Primary sensor connector accepting Hydrostatic Pressure Depth Transmitter (4-20mA), Ultrasonic Water Level Probe, Tipping Bucket Rain Sensor, and Soil Moisture.',
-    specs: {
-      'Pitch': '2.54 mm Pitch Gold Contacts',
-      'Pin 1': '5V Boosted Sensor Rail',
-      'Pin 2': 'Analog 4-20mA Depth Ingress',
-      'Pin 3': 'Pulse Interrupt (Rain Gauge)',
-      'Pin 4': 'I2C SDA (Digital Probes)',
-      'Pin 5': 'I2C SCL',
-      'Pin 6': 'Analog Soil Sensor / Return',
-    },
-    nets: ['SENS_5V', 'ADC_WATER_STAGE', 'PULSE_RAIN', 'I2C_SDA_EXT', 'I2C_SCL_EXT', 'GND'],
-    pos: [-1.4, 0.2, 1.15],
-    size: [1.8, 0.35, 0.55],
-  },
-  {
-    id: 'j3-power',
-    name: 'High-Current Battery & Solar Cell Ingress Terminal',
-    designator: 'J3',
-    category: 'power',
-    package: '2-Pin Polarized Screw Terminal (5.08mm)',
-    description: 'Heavy copper screw-down terminals with clearly printed silkscreen polarity (+ / -) for 3.2V LiFePO4 battery buffer pack and 6V 5W monocrystalline solar panel.',
-    specs: {
-      'Terminal Rating': '10 A / 250 V AC/DC',
-      'Wire Gauge': '14 – 26 AWG solid/stranded',
-      'Clamping': 'Zinc-plated copper cage clamp',
-    },
-    nets: ['BATT_PLUS', 'BATT_MINUS'],
-    pos: [3.2, 0.22, 0.4],
-    size: [0.95, 0.38, 0.6],
-  },
-];
-
 export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
   const { isDarkMode } = useTheme();
   const mountRef = useRef<HTMLDivElement>(null);
 
-  // States
-  const [selectedComp, setSelectedComp] = useState<PCBComponentMeta>(PCB_COMPONENTS[0]);
+  // Active States
+  const [selectedComp, setSelectedComp] = useState<PCBComponentMeta>(ROOT_NODE_COMPONENTS[0]);
   const [hoveredComp, setHoveredComp] = useState<PCBComponentMeta | null>(null);
   const [activeLayer, setActiveLayer] = useState<'all' | 'components' | 'traces' | 'silkscreen'>('all');
   const [autoRotate, setAutoRotate] = useState<boolean>(false);
-  const [boardColor, setBoardColor] = useState<'green' | 'dark' | 'blue' | 'black'>('green');
+  const [boardColor, setBoardColor] = useState<'green' | 'dark' | 'blue' | 'purple'>('green');
   const [showWireframe, setShowWireframe] = useState<boolean>(false);
   const [customGlbLoaded, setCustomGlbLoaded] = useState<boolean>(false);
   const [customGlbName, setCustomGlbName] = useState<string>('');
-  const [viewPreset, setViewPreset] = useState<'iso' | 'top' | 'mcu' | 'rf' | 'ports'>('iso');
-  const [activeTabMode, setActiveTabMode] = useState<'3d' | 'schematic' | 'specs'>('3d');
+  const [viewPreset, setViewPreset] = useState<'iso' | 'top' | 'mcu' | 'bg95' | 'lora' | 'power' | 'ports'>('iso');
+  const [activeTabMode, setActiveTabMode] = useState<'3d' | 'schematic' | 'datapath' | 'specs'>('3d');
+  const [bomFilter, setBomFilter] = useState<'all' | 'mcu' | 'rf' | 'power' | 'connector' | 'passive' | 'indicator'>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Three.js internal references
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -349,16 +72,21 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
   const boardMeshRef = useRef<THREE.Mesh | null>(null);
   const tracesGroupRef = useRef<THREE.Group | null>(null);
   const silkscreenGroupRef = useRef<THREE.Group | null>(null);
-  const ledMeshRef = useRef<THREE.Mesh | null>(null);
+  const ledMeshesRef = useRef<THREE.Mesh[]>([]);
   const animFrameRef = useRef<number | null>(null);
 
   // Board colors palette
   const boardColors = useMemo(() => ({
-    green: { base: 0x0e3b26, specular: 0x1f5f3e, edge: 0x071e13 },
-    dark: { base: 0x11161d, specular: 0x223040, edge: 0x0a0d12 },
-    blue: { base: 0x092b47, specular: 0x155184, edge: 0x051624 },
-    black: { base: 0x0a0a0a, specular: 0x202020, edge: 0x050505 },
+    green: { base: 0x0c331e, specular: 0x1d663e, edge: 0x061c10, name: 'KiCad Green' },
+    dark: { base: 0x11161d, specular: 0x223040, edge: 0x0a0d12, name: 'Matte Stealth' },
+    blue: { base: 0x092b47, specular: 0x155184, edge: 0x051624, name: 'Cobalt Blue' },
+    purple: { base: 0x241138, specular: 0x482170, edge: 0x140621, name: 'OSH Purple' },
   }), []);
+
+  // Board dimensions in 3D units (scale 1 unit = 10mm -> 13.75 x 7.75 x 0.16)
+  const B_WIDTH = 13.75;
+  const B_DEPTH = 7.75;
+  const B_HEIGHT = 0.16;
 
   // Initialize Three.js Scene
   useEffect(() => {
@@ -373,7 +101,7 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
 
     // 2. Camera
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.set(0, 7.5, 7.2);
+    camera.position.set(5.5, 9.5, 9.5);
     cameraRef.current = camera;
 
     // 3. Renderer
@@ -383,7 +111,7 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
+    renderer.toneMappingExposure = 1.2;
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
@@ -392,86 +120,85 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.maxPolarAngle = Math.PI / 2 + 0.15; // Allow slight underside view
-    controls.minDistance = 2.5;
-    controls.maxDistance = 16.0;
+    controls.maxPolarAngle = Math.PI / 2 + 0.15;
+    controls.minDistance = 3.5;
+    controls.maxDistance = 22.0;
     controls.target.set(0, 0, 0);
     controlsRef.current = controls;
 
-    // 5. Lighting Setup for Realistic PCB Materials
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+    // 5. Lighting Setup
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
     scene.add(ambientLight);
 
-    const mainLight = new THREE.DirectionalLight(0xfff8ee, 2.2);
-    mainLight.position.set(5, 12, 6);
+    const mainLight = new THREE.DirectionalLight(0xfff7e6, 2.4);
+    mainLight.position.set(7, 14, 8);
     mainLight.castShadow = true;
     mainLight.shadow.mapSize.width = 1024;
     mainLight.shadow.mapSize.height = 1024;
     mainLight.shadow.bias = -0.0005;
     scene.add(mainLight);
 
-    const fillLight = new THREE.DirectionalLight(0x88ccff, 1.1);
-    fillLight.position.set(-6, 8, -5);
+    const fillLight = new THREE.DirectionalLight(0x7dd3fc, 1.2);
+    fillLight.position.set(-8, 9, -6);
     scene.add(fillLight);
 
-    const topRimLight = new THREE.PointLight(0x00e5ff, 1.5, 15);
-    topRimLight.position.set(0, 4, 0);
-    scene.add(topRimLight);
+    const highlightLight = new THREE.PointLight(0x38bdf8, 2.0, 20);
+    highlightLight.position.set(0, 5, 0);
+    scene.add(highlightLight);
 
-    // 6. Build Procedural Realistic PCB Geometry
+    // 6. Build Procedural Root Node Board Geometry
     const boardGroup = new THREE.Group();
     scene.add(boardGroup);
 
-    // 6.1 Substrate FR-4 Board
-    const boardWidth = 8.4;
-    const boardHeight = 0.16;
-    const boardDepth = 4.8;
-    const cornerRadius = 0.3;
-
+    // 6.1 Substrate FR-4 Board (137.5 x 77.5 mm)
+    const cornerRadius = 0.35;
     const boardShape = new THREE.Shape();
-    const x = -boardWidth / 2;
-    const z = -boardDepth / 2;
-    boardShape.moveTo(x + cornerRadius, z);
-    boardShape.lineTo(x + boardWidth - cornerRadius, z);
-    boardShape.quadraticCurveTo(x + boardWidth, z, x + boardWidth, z + cornerRadius);
-    boardShape.lineTo(x + boardWidth, z + boardDepth - cornerRadius);
-    boardShape.quadraticCurveTo(x + boardWidth, z + boardDepth, x + boardWidth - cornerRadius, z + boardDepth);
-    boardShape.lineTo(x + cornerRadius, z + boardDepth);
-    boardShape.quadraticCurveTo(x, z + boardDepth, x, z + boardDepth - cornerRadius);
-    boardShape.lineTo(x, z + cornerRadius);
-    boardShape.quadraticCurveTo(x, z, x + cornerRadius, z);
+    const bx = -B_WIDTH / 2;
+    const bz = -B_DEPTH / 2;
+    boardShape.moveTo(bx + cornerRadius, bz);
+    boardShape.lineTo(bx + B_WIDTH - cornerRadius, bz);
+    boardShape.quadraticCurveTo(bx + B_WIDTH, bz, bx + B_WIDTH, bz + cornerRadius);
+    boardShape.lineTo(bx + B_WIDTH, bz + B_DEPTH - cornerRadius);
+    boardShape.quadraticCurveTo(bx + B_WIDTH, bz + B_DEPTH, bx + B_WIDTH - cornerRadius, bz + B_DEPTH);
+    boardShape.lineTo(bx + cornerRadius, bz + B_DEPTH);
+    boardShape.quadraticCurveTo(bx, bz + B_DEPTH, bx, bz + B_DEPTH - cornerRadius);
+    boardShape.lineTo(bx, bz + cornerRadius);
+    boardShape.quadraticCurveTo(bx, bz, bx + cornerRadius, bz);
 
-    // 4 Corner mounting holes
+    // 4 Corner M3 Mounting Holes
     const holeRadius = 0.16;
-    const holeOffsets = [
-      [-boardWidth / 2 + 0.45, -boardDepth / 2 + 0.45],
-      [boardWidth / 2 - 0.45, -boardDepth / 2 + 0.45],
-      [boardWidth / 2 - 0.45, boardDepth / 2 - 0.45],
-      [-boardWidth / 2 + 0.45, boardDepth / 2 - 0.45],
+    const holeMarginX = 0.55;
+    const holeMarginZ = 0.55;
+    const holeCoords: [number, number][] = [
+      [-B_WIDTH / 2 + holeMarginX, -B_DEPTH / 2 + holeMarginZ],
+      [B_WIDTH / 2 - holeMarginX, -B_DEPTH / 2 + holeMarginZ],
+      [B_WIDTH / 2 - holeMarginX, B_DEPTH / 2 - holeMarginZ],
+      [-B_WIDTH / 2 + holeMarginX, B_DEPTH / 2 - holeMarginZ],
     ];
-    holeOffsets.forEach(([hx, hz]) => {
+
+    holeCoords.forEach(([hx, hz]) => {
       const holePath = new THREE.Path();
       holePath.absarc(hx, hz, holeRadius, 0, Math.PI * 2, true);
       boardShape.holes.push(holePath);
     });
 
     const extrudeSettings: THREE.ExtrudeGeometryOptions = {
-      depth: boardHeight,
+      depth: B_HEIGHT,
       bevelEnabled: true,
-      bevelSegments: 2,
+      bevelSegments: 3,
       steps: 1,
       bevelSize: 0.02,
       bevelThickness: 0.02,
     };
 
     const boardGeom = new THREE.ExtrudeGeometry(boardShape, extrudeSettings);
-    boardGeom.rotateX(Math.PI / 2); // Lay flat on X-Z plane
+    boardGeom.rotateX(Math.PI / 2);
 
     const currentPalette = boardColors[boardColor];
     const boardMat = new THREE.MeshStandardMaterial({
       color: currentPalette.base,
-      roughness: 0.45,
-      metalness: 0.12,
+      roughness: 0.42,
+      metalness: 0.15,
     });
     const boardMesh = new THREE.Mesh(boardGeom, boardMat);
     boardMesh.receiveShadow = true;
@@ -479,17 +206,17 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
     boardGroup.add(boardMesh);
     boardMeshRef.current = boardMesh;
 
-    // Corner Gold Annular Rings for mounting holes
-    holeOffsets.forEach(([hx, hz]) => {
-      const ringGeom = new THREE.RingGeometry(holeRadius, holeRadius + 0.12, 32);
+    // Corner Gold Annular Rings
+    const goldMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      metalness: 0.95,
+      roughness: 0.25,
+    });
+    holeCoords.forEach(([hx, hz]) => {
+      const ringGeom = new THREE.RingGeometry(holeRadius, holeRadius + 0.14, 32);
       ringGeom.rotateX(-Math.PI / 2);
-      const goldMat = new THREE.MeshStandardMaterial({
-        color: 0xd4af37,
-        metalness: 0.95,
-        roughness: 0.25,
-      });
       const ringMesh = new THREE.Mesh(ringGeom, goldMat);
-      ringMesh.position.set(hx, 0.082, hz);
+      ringMesh.position.set(hx, 0.083, hz);
       boardGroup.add(ringMesh);
     });
 
@@ -498,44 +225,63 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
     boardGroup.add(tracesGroup);
     tracesGroupRef.current = tracesGroup;
 
-    // Realistic Copper Routing Tracks
     const traceMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1b7348,
+      color: 0x228448,
       roughness: 0.35,
-      metalness: 0.3,
+      metalness: 0.35,
     });
-    const goldPadMaterial = new THREE.MeshStandardMaterial({
-      color: 0xe6b843,
-      metalness: 0.96,
-      roughness: 0.22,
-    });
-    const silverSolderMaterial = new THREE.MeshStandardMaterial({
-      color: 0xc8d2dc,
-      metalness: 0.88,
-      roughness: 0.3,
+    const solderMaterial = new THREE.MeshStandardMaterial({
+      color: 0xd8e1e8,
+      metalness: 0.85,
+      roughness: 0.28,
     });
 
-    // Generate routed track paths between components
-    const trackPaths = [
-      // MCU (U9) to LoRa (U5) bus
-      [[-0.8, -0.6], [-0.3, -0.6], [0.0, -0.6]],
-      [[-0.8, -0.75], [-0.2, -0.75], [-0.1, -0.9], [0.3, -0.9], [0.3, -0.8]],
-      [[-0.8, -0.45], [-0.3, -0.45], [-0.1, -0.3], [0.3, -0.3]],
-      // MCU to Sensors (U6, U7)
-      [[-0.8, -0.3], [0.5, -0.3], [1.1, -0.05]],
-      [[1.1, 0.05], [1.8, 0.05], [1.9, -0.4]],
-      // Power rails
-      [[3.2, 0.4], [2.8, 0.2], [1.8, 0.05], [-0.8, 0.0]],
-      [[-1.4, 0.2], [-1.4, 0.8]],
-      // USB-C data tracks
-      [[3.3, -0.6], [2.2, -0.6], [1.5, -0.4], [-0.8, -0.2]],
-      // Buzzer drive track
-      [[-0.8, 0.3], [0.2, 0.3], [1.6, 0.5], [3.2, 0.9]],
-      // Crystal oscillator tracks
-      [[-0.8, -0.1], [0.2, -0.1], [0.4, 0.0]],
+    // Realistic Traces matching the actual board layout in image.png
+    const rootTracePaths = [
+      // USB-C to CH340K (U9)
+      [[-5.6, -0.6], [-4.8, -0.6], [-4.2, -0.5]],
+      [[-5.6, -0.45], [-4.9, -0.45], [-4.2, -0.45]],
+      // CH340K to ESP32-S3 (U1) UART bus
+      [[-3.4, -0.5], [-2.5, -0.5], [-1.8, -0.4]],
+      [[-3.4, -0.3], [-2.5, -0.3], [-1.8, -0.2]],
+      // Auto-reset Q1/Q2 lines to ESP32 EN & IO0
+      [[-3.8, -1.6], [-2.8, -1.6], [-1.8, -1.2]],
+      [[-3.8, -1.4], [-2.6, -1.4], [-1.8, -1.0]],
+      // SW1 to EN & SW2 to IO0
+      [[-0.1, -1.8], [-0.5, -1.8], [-0.9, -1.8], [-1.2, -1.4]],
+      [[1.8, -2.1], [1.0, -2.1], [0.0, -1.2], [-0.8, -0.6]],
+      // ESP32 to SX1276 LoRa (SPI bus)
+      [[-0.5, -0.8], [0.8, -0.8], [1.8, -1.0], [2.6, -1.0]],
+      [[-0.5, -0.6], [0.8, -0.6], [1.8, -0.8], [2.6, -0.8]],
+      [[-0.5, -0.4], [0.8, -0.4], [1.8, -0.6], [2.6, -0.6]],
+      // SX1276 ANT to RF1 (50-ohm RF trace)
+      [[3.6, -1.8], [3.6, -2.4], [3.4, -2.8]],
+      // ESP32 to Level Shifter TXS0102
+      [[-0.5, 0.2], [0.0, 0.2], [0.1, 0.2]],
+      // TXS0102 to Quectel BG95-M3
+      [[0.5, 0.2], [0.8, 0.3], [1.0, 0.4]],
+      // BG95-M3 to RF2 (Cellular antenna feed)
+      [[0.6, 1.4], [0.2, 1.9], [-0.4, 2.6]],
+      // BG95-M3 to SIM1 (SIM clock, data, rst, vdd)
+      [[2.2, 0.8], [2.7, 0.8], [3.0, 1.0]],
+      [[2.2, 1.0], [2.7, 1.0], [3.0, 1.2]],
+      [[2.2, 1.2], [2.7, 1.2], [3.0, 1.4]],
+      // Battery P1 to Charger CN3065 & Protection U8
+      [[-4.0, 1.5], [-4.7, 1.5], [-5.0, 1.4]],
+      [[-3.8, 1.2], [-3.4, 0.8], [-3.2, 0.7]],
+      // Charger to D1 Diode & Regulator U2 (AMS1117-3.3)
+      [[-2.8, 1.2], [-2.6, 1.4], [-2.3, 1.5]],
+      [[-2.3, 1.5], [-1.0, 1.5], [0.5, -2.0], [1.5, -2.6]],
+      // 3300uF Bulk Cap directly to BG95-M3 VBAT pins
+      [[0.2, 1.4], [0.4, 1.2], [0.8, 1.0]],
+      // J1 Sensor Header to ESP32 I2C
+      [[-4.4, -1.8], [-3.2, -1.8], [-2.2, -1.2]],
+      [[-4.4, -1.6], [-3.2, -1.6], [-2.2, -1.0]],
+      // Buzzer Driver Q4 / R13 to BUZZER1
+      [[-4.8, 1.9], [-4.8, 2.1], [-5.0, 2.2]],
     ];
 
-    trackPaths.forEach((pts) => {
+    rootTracePaths.forEach((pts) => {
       for (let i = 0; i < pts.length - 1; i++) {
         const p1 = pts[i];
         const p2 = pts[i + 1];
@@ -544,38 +290,12 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
         const len = Math.sqrt(dx * dx + dz * dz);
         const angle = Math.atan2(dz, dx);
 
-        const trackGeom = new THREE.PlaneGeometry(len, 0.045);
+        const trackGeom = new THREE.PlaneGeometry(len, 0.05);
         trackGeom.rotateX(-Math.PI / 2);
         trackGeom.rotateY(-angle);
         const trackMesh = new THREE.Mesh(trackGeom, traceMaterial);
-        trackMesh.position.set((p1[0] + p2[0]) / 2, 0.081, (p1[1] + p2[1]) / 2);
+        trackMesh.position.set((p1[0] + p2[0]) / 2, 0.0815, (p1[1] + p2[1]) / 2);
         tracesGroup.add(trackMesh);
-      }
-    });
-
-    // Gold ENIG SMD footprint pads across the board
-    PCB_COMPONENTS.forEach((comp) => {
-      // Base footprint outline
-      const padWidth = comp.size[0] + 0.12;
-      const padDepth = comp.size[2] + 0.12;
-      const padGeom = new THREE.PlaneGeometry(padWidth, padDepth);
-      padGeom.rotateX(-Math.PI / 2);
-      const padMesh = new THREE.Mesh(padGeom, goldPadMaterial);
-      padMesh.position.set(comp.pos[0], 0.0815, comp.pos[2]);
-      tracesGroup.add(padMesh);
-
-      // Solder fillet pins for QFN/SOIC/LCC
-      if (comp.category === 'mcu' || comp.category === 'rf') {
-        const pinCount = comp.category === 'mcu' ? 12 : 6;
-        for (let p = 0; p < pinCount; p++) {
-          const t = (p / (pinCount - 1) - 0.5) * comp.size[0];
-          [-comp.size[2] / 2 - 0.08, comp.size[2] / 2 + 0.08].forEach((pz) => {
-            const pinGeom = new THREE.BoxGeometry(0.06, 0.03, 0.14);
-            const pinMesh = new THREE.Mesh(pinGeom, goldPadMaterial);
-            pinMesh.position.set(comp.pos[0] + t, 0.085, comp.pos[2] + pz);
-            tracesGroup.add(pinMesh);
-          });
-        }
       }
     });
 
@@ -584,254 +304,288 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
     boardGroup.add(componentsGroup);
     componentsGroupRef.current = componentsGroup;
 
-    // Component materials
-    const icMoldedBodyMat = new THREE.MeshStandardMaterial({
-      color: 0x18181b,
-      roughness: 0.75,
-      metalness: 0.1,
-    });
-    const shieldCanMat = new THREE.MeshStandardMaterial({
-      color: 0xbfdbfe,
-      roughness: 0.18,
-      metalness: 0.94,
-    });
-    const ceramicCapMat = new THREE.MeshStandardMaterial({
-      color: 0xa87d55, // Tan capacitor dielectric
-      roughness: 0.5,
-      metalness: 0.05,
-    });
-    const resistorMat = new THREE.MeshStandardMaterial({
-      color: 0x09090b,
-      roughness: 0.6,
-      metalness: 0.15,
-    });
-    const connectorPlasticMat = new THREE.MeshStandardMaterial({
-      color: 0x18181b,
-      roughness: 0.8,
-      metalness: 0.05,
-    });
-    const metalBracketMat = new THREE.MeshStandardMaterial({
-      color: 0xd4d4d8,
-      roughness: 0.25,
-      metalness: 0.85,
-    });
+    // Reusable Materials
+    const icBlackMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.8, metalness: 0.1 });
+    const silverShieldMat = new THREE.MeshStandardMaterial({ color: 0xd8dee9, roughness: 0.25, metalness: 0.92 });
+    const goldPcbAntennaMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.2, metalness: 0.95 });
+    const brassConnectorMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.25, metalness: 0.9 });
+    const pcbCapCanMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.35, metalness: 0.65 });
+    const whitePlasticMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.7, metalness: 0.05 });
+    const darkMetalMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.4, metalness: 0.8 });
 
-    PCB_COMPONENTS.forEach((comp) => {
+    // Render Each Component
+    ROOT_NODE_COMPONENTS.forEach((comp) => {
       const compPivot = new THREE.Group();
       compPivot.position.set(comp.pos[0], 0.08 + comp.size[1] / 2, comp.pos[2]);
       compPivot.name = comp.id;
 
-      if (comp.id === 'u9-mcu') {
-        // MCU: Molded IC package with bevel + laser marking center
-        const mcuGeom = new THREE.BoxGeometry(comp.size[0], comp.size[1], comp.size[2]);
-        const mcuMesh = new THREE.Mesh(mcuGeom, icMoldedBodyMat);
-        mcuMesh.castShadow = true;
-        compPivot.add(mcuMesh);
+      // Base footprint copper / gold pad
+      const padW = comp.size[0] + 0.15;
+      const padD = comp.size[2] + 0.15;
+      const padGeom = new THREE.PlaneGeometry(padW, padD);
+      padGeom.rotateX(-Math.PI / 2);
+      const padMesh = new THREE.Mesh(padGeom, goldMat);
+      padMesh.position.set(comp.pos[0], 0.081, comp.pos[2]);
+      tracesGroup.add(padMesh);
 
-        // Pin 1 Index Dot
-        const dotGeom = new THREE.CircleGeometry(0.06, 16);
-        dotGeom.rotateX(-Math.PI / 2);
-        const dotMat = new THREE.MeshBasicMaterial({ color: 0x71717a });
-        const dotMesh = new THREE.Mesh(dotGeom, dotMat);
-        dotMesh.position.set(-comp.size[0] / 2 + 0.14, comp.size[1] / 2 + 0.005, -comp.size[2] / 2 + 0.14);
-        compPivot.add(dotMesh);
+      // Customized geometry per component type
+      if (comp.id === 'esp32-mcu') {
+        // ESP32-S3 module with metal RF shield & serpentine trace antenna
+        const shieldBox = new THREE.BoxGeometry(comp.size[0], comp.size[1], comp.size[2] * 0.7);
+        const shieldMesh = new THREE.Mesh(shieldBox, silverShieldMat);
+        shieldMesh.position.set(0, 0, 0.15);
+        shieldMesh.castShadow = true;
+        compPivot.add(shieldMesh);
 
-        // Central thermal copper vias array
-        for (let vx = -0.2; vx <= 0.2; vx += 0.2) {
-          for (let vz = -0.2; vz <= 0.2; vz += 0.2) {
-            const viaGeom = new THREE.CylinderGeometry(0.03, 0.03, 0.01, 12);
-            const viaMesh = new THREE.Mesh(viaGeom, goldPadMaterial);
-            viaMesh.position.set(vx, comp.size[1] / 2 + 0.002, vz);
-            compPivot.add(viaMesh);
-          }
-        }
-      } else if (comp.id === 'u5-lora') {
-        // LoRa Module: Nickel metal RF shield can
-        const canGeom = new THREE.BoxGeometry(comp.size[0], comp.size[1], comp.size[2]);
-        const canMesh = new THREE.Mesh(canGeom, shieldCanMat);
-        canMesh.castShadow = true;
-        compPivot.add(canMesh);
+        // Antenna PCB Area
+        const antPcb = new THREE.BoxGeometry(comp.size[0], comp.size[1] * 0.5, comp.size[2] * 0.3);
+        const antPcbMat = new THREE.MeshStandardMaterial({ color: 0x11161d, roughness: 0.6 });
+        const antPcbMesh = new THREE.Mesh(antPcb, antPcbMat);
+        antPcbMesh.position.set(0, -comp.size[1] * 0.25, -comp.size[2] * 0.35);
+        compPivot.add(antPcbMesh);
 
-        // Engraved Logo Plate
-        const plateGeom = new THREE.PlaneGeometry(comp.size[0] * 0.75, comp.size[2] * 0.75);
-        plateGeom.rotateX(-Math.PI / 2);
-        const plateMat = new THREE.MeshStandardMaterial({
-          color: 0x93c5fd,
-          metalness: 0.9,
-          roughness: 0.35,
-        });
-        const plateMesh = new THREE.Mesh(plateGeom, plateMat);
-        plateMesh.position.set(0, comp.size[1] / 2 + 0.004, 0);
-        compPivot.add(plateMesh);
-      } else if (comp.id === 'buzzer1') {
-        // Piezo Siren: Round acoustic cylinder with sound cavity
-        const buzzerGeom = new THREE.CylinderGeometry(comp.size[0] / 2, comp.size[0] / 2, comp.size[1], 32);
-        const buzzerMesh = new THREE.Mesh(buzzerGeom, icMoldedBodyMat);
-        buzzerMesh.castShadow = true;
-        compPivot.add(buzzerMesh);
+        // Gold PCB Antenna Traces (Inverted-F)
+        const traceGeom = new THREE.BoxGeometry(comp.size[0] * 0.8, 0.02, 0.08);
+        const traceM = new THREE.Mesh(traceGeom, goldPcbAntennaMat);
+        traceM.position.set(0, 0.01, -comp.size[2] * 0.35);
+        compPivot.add(traceM);
 
-        // Sound hole in center
-        const holeGeom = new THREE.CylinderGeometry(0.12, 0.12, 0.02, 16);
-        const holeMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
-        const holeMesh = new THREE.Mesh(holeGeom, holeMat);
-        holeMesh.position.set(0, comp.size[1] / 2 + 0.005, 0);
-        compPivot.add(holeMesh);
-      } else if (comp.id === 'usb-c1') {
-        // USB-C connector: Metal jacket with hollow tongue
-        const usbGeom = new THREE.BoxGeometry(comp.size[0], comp.size[1], comp.size[2]);
-        const usbMesh = new THREE.Mesh(usbGeom, metalBracketMat);
-        usbMesh.castShadow = true;
-        compPivot.add(usbMesh);
-
-        // Receptacle tongue entry
-        const entryGeom = new THREE.BoxGeometry(comp.size[0] * 0.85, comp.size[1] * 0.5, 0.1);
-        const entryMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-        const entryMesh = new THREE.Mesh(entryGeom, entryMat);
-        entryMesh.position.set(0, 0, comp.size[2] / 2 + 0.01);
-        compPivot.add(entryMesh);
-      } else if (comp.category === 'connector') {
-        // Header blocks: Base plastic insulator + protruding gold pins
-        const headerBaseGeom = new THREE.BoxGeometry(comp.size[0], comp.size[1] * 0.6, comp.size[2]);
-        const headerBaseMesh = new THREE.Mesh(headerBaseGeom, connectorPlasticMat);
-        headerBaseMesh.castShadow = true;
-        compPivot.add(headerBaseMesh);
-
-        // Individual gold pins
-        const pinCount = comp.id === 'j1-header' ? 4 : comp.id === 'j2-sensors' ? 6 : 2;
-        for (let i = 0; i < pinCount; i++) {
-          const t = (i / (pinCount - 1) - 0.5) * (comp.size[0] - 0.3);
-          const pinGeom = new THREE.BoxGeometry(0.06, comp.size[1] * 1.5, 0.06);
-          const pinMesh = new THREE.Mesh(pinGeom, goldPadMaterial);
-          pinMesh.position.set(t, comp.size[1] * 0.4, 0);
-          pinMesh.castShadow = true;
-          compPivot.add(pinMesh);
-        }
-      } else if (comp.id === 'led-group') {
-        // Indicator LEDs (3x colored chips)
-        const ledColors = [0x10b981, 0x00e5ff, 0xf59e0b];
-        ledColors.forEach((colorHex, idx) => {
-          const ledGeom = new THREE.BoxGeometry(0.18, 0.08, 0.12);
-          const ledMat = new THREE.MeshStandardMaterial({
-            color: colorHex,
-            emissive: colorHex,
-            emissiveIntensity: 0.9,
-            roughness: 0.2,
-          });
-          const ledMesh = new THREE.Mesh(ledGeom, ledMat);
-          ledMesh.position.set((idx - 1) * 0.26, 0, 0);
-          compPivot.add(ledMesh);
-          if (idx === 1) ledMeshRef.current = ledMesh;
-        });
-      } else {
-        // Default SMD package: IC / Diode / Resistor / Crystal
+        // ESP32 text logo plate
+        const logoPlate = new THREE.PlaneGeometry(1.6, 0.7);
+        logoPlate.rotateX(-Math.PI / 2);
+        const logoMat = new THREE.MeshBasicMaterial({ color: 0x334155 });
+        const logoM = new THREE.Mesh(logoPlate, logoMat);
+        logoM.position.set(0, comp.size[1] / 2 + 0.005, 0.15);
+        compPivot.add(logoM);
+      } else if (comp.id === 'bg95-modem') {
+        // Quectel BG95-M3 large square metal LGA shield
         const geom = new THREE.BoxGeometry(comp.size[0], comp.size[1], comp.size[2]);
-        const mat = comp.category === 'passive' ? ceramicCapMat : icMoldedBodyMat;
-        const mesh = new THREE.Mesh(geom, mat);
+        const mesh = new THREE.Mesh(geom, silverShieldMat);
         mesh.castShadow = true;
         compPivot.add(mesh);
 
-        // Silver solder termination caps on sides
+        // Engraved center logo
+        const qPlate = new THREE.PlaneGeometry(comp.size[0] * 0.7, comp.size[2] * 0.7);
+        qPlate.rotateX(-Math.PI / 2);
+        const qMat = new THREE.MeshBasicMaterial({ color: 0x64748b });
+        const qMesh = new THREE.Mesh(qPlate, qMat);
+        qMesh.position.set(0, comp.size[1] / 2 + 0.003, 0);
+        compPivot.add(qMesh);
+      } else if (comp.id === 'sx1276-lora') {
+        // SX1276 LoRa module
+        const geom = new THREE.BoxGeometry(comp.size[0], comp.size[1], comp.size[2]);
+        const mesh = new THREE.Mesh(geom, silverShieldMat);
+        mesh.castShadow = true;
+        compPivot.add(mesh);
+
+        // Crystal on top
+        const xtal = new THREE.BoxGeometry(0.5, 0.06, 0.35);
+        const xtalMesh = new THREE.Mesh(xtal, darkMetalMat);
+        xtalMesh.position.set(0.4, comp.size[1] / 2 + 0.03, -0.4);
+        compPivot.add(xtalMesh);
+      } else if (comp.category === 'connector' && comp.id.startsWith('rf')) {
+        // Gold SMA Threaded Connectors
+        const barrelGeom = new THREE.CylinderGeometry(0.35, 0.35, comp.size[1] * 1.5, 24);
+        const barrelMesh = new THREE.Mesh(barrelGeom, brassConnectorMat);
+        barrelMesh.castShadow = true;
+        compPivot.add(barrelMesh);
+
+        // Center Pin
+        const centerPin = new THREE.CylinderGeometry(0.06, 0.06, comp.size[1] * 1.8, 12);
+        const pinMesh = new THREE.Mesh(centerPin, goldMat);
+        compPivot.add(pinMesh);
+
+        // Base Flange
+        const flange = new THREE.BoxGeometry(comp.size[0], 0.08, comp.size[2]);
+        const flangeMesh = new THREE.Mesh(flange, brassConnectorMat);
+        flangeMesh.position.set(0, -comp.size[1] / 2, 0);
+        compPivot.add(flangeMesh);
+      } else if (comp.id === 'sim-socket') {
+        // SIM Card Slot
+        const simHousing = new THREE.BoxGeometry(comp.size[0], comp.size[1], comp.size[2]);
+        const simMesh = new THREE.Mesh(simHousing, silverShieldMat);
+        simMesh.castShadow = true;
+        compPivot.add(simMesh);
+
+        // Slot cutout entrance
+        const slot = new THREE.BoxGeometry(comp.size[0] * 0.9, 0.04, 0.1);
+        const slotMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
+        const slotMesh = new THREE.Mesh(slot, slotMat);
+        slotMesh.position.set(0, 0, comp.size[2] / 2 + 0.01);
+        compPivot.add(slotMesh);
+      } else if (comp.id === 'usb-c-receptacle') {
+        // USB-C Receptacle
+        const bodyGeom = new THREE.BoxGeometry(comp.size[0], comp.size[1], comp.size[2]);
+        const bodyMesh = new THREE.Mesh(bodyGeom, silverShieldMat);
+        bodyMesh.castShadow = true;
+        compPivot.add(bodyMesh);
+
+        // Opening
+        const hole = new THREE.BoxGeometry(0.1, comp.size[1] * 0.6, comp.size[2] * 0.7);
+        const holeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const holeMesh = new THREE.Mesh(hole, holeMat);
+        holeMesh.position.set(-comp.size[0] / 2 - 0.01, 0, 0);
+        compPivot.add(holeMesh);
+      } else if (comp.id === 'p1-battery-conn') {
+        // JST-PH 2-Pin Connector
+        const connGeom = new THREE.BoxGeometry(comp.size[0], comp.size[1], comp.size[2]);
+        const connMesh = new THREE.Mesh(connGeom, whitePlasticMat);
+        connMesh.castShadow = true;
+        compPivot.add(connMesh);
+
+        // 2 Gold Contact Pins
+        [-0.25, 0.25].forEach((px) => {
+          const p = new THREE.BoxGeometry(0.08, comp.size[1] * 1.3, 0.08);
+          const pm = new THREE.Mesh(p, goldMat);
+          pm.position.set(px, comp.size[1] * 0.3, 0);
+          compPivot.add(pm);
+        });
+      } else if (comp.id === 'bulk-cap') {
+        // 3300 uF Electrolytic Can Capacitor
+        const capCyl = new THREE.CylinderGeometry(comp.size[0] / 2, comp.size[0] / 2, comp.size[1], 24);
+        const capMesh = new THREE.Mesh(capCyl, pcbCapCanMat);
+        capMesh.castShadow = true;
+        compPivot.add(capMesh);
+
+        // Silver stripe (negative polarity)
+        const stripeGeom = new THREE.CylinderGeometry(comp.size[0] / 2 + 0.005, comp.size[0] / 2 + 0.005, comp.size[1], 8, 1, false, 0, Math.PI / 4);
+        const stripeMat = new THREE.MeshBasicMaterial({ color: 0xe2e8f0 });
+        const stripeMesh = new THREE.Mesh(stripeGeom, stripeMat);
+        compPivot.add(stripeMesh);
+      } else if (comp.id === 'buzzer-siren') {
+        // Piezo Buzzer
+        const bGeom = new THREE.CylinderGeometry(comp.size[0] / 2, comp.size[0] / 2, comp.size[1], 28);
+        const bMesh = new THREE.Mesh(bGeom, icBlackMat);
+        bMesh.castShadow = true;
+        compPivot.add(bMesh);
+
+        // Resonant hole in center
+        const hole = new THREE.CylinderGeometry(0.12, 0.12, 0.02, 16);
+        const hMat = new THREE.MeshBasicMaterial({ color: 0x020202 });
+        const hMesh = new THREE.Mesh(hole, hMat);
+        hMesh.position.set(0, comp.size[1] / 2 + 0.01, 0);
+        compPivot.add(hMesh);
+      } else if (comp.id === 'j1-sensor-port') {
+        // 4-Pin Header
+        const base = new THREE.BoxGeometry(comp.size[0], comp.size[1] * 0.4, comp.size[2]);
+        const baseM = new THREE.Mesh(base, icBlackMat);
+        compPivot.add(baseM);
+
+        for (let i = 0; i < 4; i++) {
+          const pz = (i - 1.5) * 0.35;
+          const pinG = new THREE.BoxGeometry(0.06, comp.size[1] * 1.6, 0.06);
+          const pinM = new THREE.Mesh(pinG, goldMat);
+          pinM.position.set(0, comp.size[1] * 0.4, pz);
+          compPivot.add(pinM);
+        }
+      } else if (comp.id === 'status-leds') {
+        // Tri-color LEDs
+        const colors = [0x10b981, 0x38bdf8, 0xef4444];
+        ledMeshesRef.current = [];
+        colors.forEach((col, idx) => {
+          const lGeom = new THREE.BoxGeometry(0.2, 0.08, 0.14);
+          const lMat = new THREE.MeshStandardMaterial({
+            color: col,
+            emissive: col,
+            emissiveIntensity: 0.9,
+            roughness: 0.2,
+          });
+          const lMesh = new THREE.Mesh(lGeom, lMat);
+          lMesh.position.set((idx - 1) * 0.28, 0, 0);
+          compPivot.add(lMesh);
+          ledMeshesRef.current.push(lMesh);
+        });
+      } else if (comp.id.startsWith('sw')) {
+        // Tactile button
+        const btnBase = new THREE.BoxGeometry(comp.size[0], comp.size[1] * 0.6, comp.size[2]);
+        const btnM = new THREE.Mesh(btnBase, silverShieldMat);
+        compPivot.add(btnM);
+
+        const actuator = new THREE.CylinderGeometry(0.12, 0.12, comp.size[1] * 0.6, 16);
+        const actMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5 });
+        const actM = new THREE.Mesh(actuator, actMat);
+        actM.position.set(0, comp.size[1] * 0.4, 0);
+        compPivot.add(actM);
+      } else {
+        // Default IC / Transistor / SOT-223 / SOT-23 / Diode
+        const geom = new THREE.BoxGeometry(comp.size[0], comp.size[1], comp.size[2]);
+        const mesh = new THREE.Mesh(geom, icBlackMat);
+        mesh.castShadow = true;
+        compPivot.add(mesh);
+
+        // Terminal metallic leads
         [-comp.size[0] / 2, comp.size[0] / 2].forEach((cx) => {
-          const capGeom = new THREE.BoxGeometry(0.08, comp.size[1] * 1.02, comp.size[2] * 1.02);
-          const capMesh = new THREE.Mesh(capGeom, silverSolderMaterial);
-          capMesh.position.set(cx, 0, 0);
-          compPivot.add(capMesh);
+          const lead = new THREE.BoxGeometry(0.08, comp.size[1] * 1.02, comp.size[2] * 0.9);
+          const leadM = new THREE.Mesh(lead, solderMaterial);
+          leadM.position.set(cx, 0, 0);
+          compPivot.add(leadM);
         });
       }
 
       componentsGroup.add(compPivot);
     });
 
-    // Populate remaining distributed 0805 & 0603 SMD Passives (R1-R15, C1-C20)
-    const passivePoints: [number, number, 'res' | 'cap'][] = [
-      [-1.8, -0.15, 'cap'], [-1.4, -0.15, 'res'], [-1.0, -0.15, 'cap'],
-      [-2.4, -0.05, 'res'], [-2.0, 0.2, 'cap'], [-1.6, 0.45, 'res'],
-      [0.0, -0.35, 'cap'], [0.2, -0.35, 'res'], [0.4, -0.35, 'cap'],
-      [0.8, -0.15, 'cap'], [1.4, 0.35, 'res'], [1.6, 0.35, 'cap'],
-      [2.0, 0.35, 'cap'], [2.3, 0.35, 'res'], [2.6, 0.35, 'cap'],
-      [0.1, 0.45, 'cap'], [0.6, 0.45, 'res'], [1.1, 0.45, 'cap'],
-      [1.7, 0.7, 'cap'], [2.1, 0.7, 'res'], [2.5, 0.7, 'cap'],
-      [-0.2, 0.7, 'res'], [0.4, 0.85, 'cap'], [1.0, 0.85, 'res'],
-    ];
-
-    passivePoints.forEach(([px, pz, type]) => {
-      const pGeom = new THREE.BoxGeometry(0.2, 0.08, 0.12);
-      const pMat = type === 'cap' ? ceramicCapMat : resistorMat;
-      const pMesh = new THREE.Mesh(pGeom, pMat);
-      pMesh.position.set(px, 0.08 + 0.04, pz);
-      componentsGroup.add(pMesh);
-
-      // Silver terminal caps
-      [-0.1, 0.1].forEach((cx) => {
-        const cGeom = new THREE.BoxGeometry(0.04, 0.085, 0.125);
-        const cMesh = new THREE.Mesh(cGeom, silverSolderMaterial);
-        cMesh.position.set(px + cx, 0.08 + 0.04, pz);
-        componentsGroup.add(cMesh);
-      });
-    });
-
-    // 6.4 Silkscreen Layer Text & Markings
+    // 6.4 Silkscreen Layer (Canvas Texture with exact board labels)
     const silkscreenGroup = new THREE.Group();
     boardGroup.add(silkscreenGroup);
     silkscreenGroupRef.current = silkscreenGroup;
 
-    // Canvas texture for crisp white silkscreen annotations & component tags
-    const silkCanvas = document.createElement('canvas');
-    silkCanvas.width = 2048;
-    silkCanvas.height = 1152;
-    const ctx = silkCanvas.getContext('2d');
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048;
+    canvas.height = 1156; // 137.5 / 77.5 ratio
+    const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.clearRect(0, 0, silkCanvas.width, silkCanvas.height);
-      ctx.fillStyle = '#ffffff';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 4;
+      ctx.fillStyle = '#ffffff';
+      ctx.lineWidth = 3;
 
-      // Outer safety boundary margin
-      ctx.strokeRect(30, 30, silkCanvas.width - 60, silkCanvas.height - 60);
+      // Board border margin
+      ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
 
-      // Board branding
-      ctx.font = 'bold 36px monospace';
-      ctx.fillText('ENVORA SENSOR NODE MESH v2.4 [IN865]', 60, 90);
-      ctx.font = 'bold 26px monospace';
-      ctx.fillText('DESIGNED FOR MONSOON & FLOOD RESILIENCE', 60, 130);
-      ctx.fillText('TOP LAYER - ENIG GOLD PLATED', silkCanvas.width - 520, 90);
+      // Header Texts
+      ctx.font = 'bold 38px monospace';
+      ctx.fillText('ENVORA GATEWAY - ROOT NODE v2.4', 60, 90);
+      ctx.font = 'bold 22px monospace';
+      ctx.fillText('BOARD SIZE: 137.5 x 77.5 mm | LORA 865MHz + NB-IoT LTE-M + USB-SERIAL', 60, 130);
 
-      // Component reference markings
-      const drawSilkBox = (cx: number, cy: number, w: number, h: number, text: string) => {
-        ctx.strokeRect(cx - w / 2, cy - h / 2, w, h);
-        ctx.font = 'bold 28px sans-serif';
-        ctx.fillText(text, cx - w / 2 + 10, cy - h / 2 - 12);
+      // Coordinate converter from 3D coords to canvas
+      const wToC = (wx: number, wz: number): [number, number] => {
+        const u = (wx + B_WIDTH / 2) / B_WIDTH;
+        const v = (wz + B_DEPTH / 2) / B_DEPTH;
+        return [u * canvas.width, v * canvas.height];
       };
 
-      // Convert 3D world coord to 2D canvas coord
-      const worldToCanvas = (wx: number, wz: number): [number, number] => {
-        const u = (wx + boardWidth / 2) / boardWidth;
-        const v = (wz + boardDepth / 2) / boardDepth;
-        return [u * silkCanvas.width, v * silkCanvas.height];
-      };
+      // Draw bounding box and label for each component
+      ROOT_NODE_COMPONENTS.forEach((c) => {
+        const [cx, cy] = wToC(c.pos[0], c.pos[2]);
+        const cw = (c.size[0] / B_WIDTH) * canvas.width + 16;
+        const ch = (c.size[2] / B_DEPTH) * canvas.height + 16;
 
-      PCB_COMPONENTS.forEach((c) => {
-        const [cx, cy] = worldToCanvas(c.pos[0], c.pos[2]);
-        const cw = (c.size[0] / boardWidth) * silkCanvas.width + 24;
-        const ch = (c.size[2] / boardDepth) * silkCanvas.height + 24;
-        drawSilkBox(cx, cy, cw, ch, c.designator);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.strokeRect(cx - cw / 2, cy - ch / 2, cw, ch);
+        ctx.font = 'bold 22px sans-serif';
+        ctx.fillText(c.designator, cx - cw / 2 + 6, cy - ch / 2 - 8);
       });
 
-      // Polarity signs for buzzer & battery terminal
-      const [buzzerX, buzzerY] = worldToCanvas(3.2, 1.0);
-      ctx.font = 'bold 34px sans-serif';
-      ctx.fillText('+', buzzerX - 80, buzzerY + 12);
-      ctx.fillText('-', buzzerX + 60, buzzerY + 12);
+      // Special labels
+      const [loraX, loraY] = wToC(3.2, -1.2);
+      ctx.fillText('LORA SX1276 (865MHz)', loraX - 110, loraY + 70);
 
-      const [batX, batY] = worldToCanvas(3.2, 0.4);
-      ctx.fillText('+  LiFePO4  -', batX - 80, batY + 60);
+      const [cellX, cellY] = wToC(1.2, 0.6);
+      ctx.fillText('QUECTEL BG95-M3 (NB-IoT/LTE)', cellX - 150, cellY + 80);
 
-      // Antenna text
-      const [antX, antY] = worldToCanvas(0.6, -0.6);
-      ctx.fillText('ANT 865MHz', antX - 90, antY - 140);
+      const [mcuX, mcuY] = wToC(-1.8, -0.6);
+      ctx.fillText('ESP32-S3 (EDGE AI)', mcuX - 90, mcuY + 80);
+
+      const [p1X, p1Y] = wToC(-4.2, 1.5);
+      ctx.fillText('18650 BATT IN (+/-)', p1X - 80, p1Y + 45);
+
+      const [j1X, j1Y] = wToC(-4.6, -2.0);
+      ctx.fillText('J1 I2C SENSOR', j1X - 60, j1Y - 20);
     }
 
-    const silkTexture = new THREE.CanvasTexture(silkCanvas);
+    const silkTexture = new THREE.CanvasTexture(canvas);
     silkTexture.anisotropy = 8;
     const silkMat = new THREE.MeshBasicMaterial({
       map: silkTexture,
@@ -839,10 +593,10 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
       opacity: 0.95,
       depthWrite: false,
     });
-    const silkGeom = new THREE.PlaneGeometry(boardWidth, boardDepth);
+    const silkGeom = new THREE.PlaneGeometry(B_WIDTH, B_DEPTH);
     silkGeom.rotateX(-Math.PI / 2);
     const silkMesh = new THREE.Mesh(silkGeom, silkMat);
-    silkMesh.position.set(0, 0.0825, 0);
+    silkMesh.position.set(0, 0.082, 0);
     silkscreenGroup.add(silkMesh);
 
     // 7. Raycasting for Component Selection
@@ -863,7 +617,7 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
           rootObj = rootObj.parent;
         }
         if (rootObj && rootObj.name) {
-          const match = PCB_COMPONENTS.find((c) => c.id === rootObj?.name);
+          const match = ROOT_NODE_COMPONENTS.find((c) => c.id === rootObj?.name);
           if (match) {
             setHoveredComp(match);
             container.style.cursor = 'pointer';
@@ -889,7 +643,7 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
           rootObj = rootObj.parent;
         }
         if (rootObj && rootObj.name) {
-          const match = PCB_COMPONENTS.find((c) => c.id === rootObj?.name);
+          const match = ROOT_NODE_COMPONENTS.find((c) => c.id === rootObj?.name);
           if (match) {
             setSelectedComp(match);
           }
@@ -900,21 +654,21 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
     container.addEventListener('mousemove', onPointerMove);
     container.addEventListener('click', onClick);
 
-    // 8. Animation Loop
+    // 8. Render Animation Loop
     let clock = 0;
     const animate = () => {
       clock += 0.016;
 
-      // Pulse LoRa LED
-      if (ledMeshRef.current) {
-        const pulse = 0.5 + 0.5 * Math.sin(clock * 5);
-        (ledMeshRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.4 + pulse * 1.2;
+      // Pulse diagnostic LEDs
+      if (ledMeshesRef.current.length > 0) {
+        const pulse = Math.sin(clock * 6);
+        ledMeshesRef.current.forEach((led, i) => {
+          const mat = led.material as THREE.MeshStandardMaterial;
+          mat.emissiveIntensity = 0.5 + (0.5 * Math.sin(clock * 4 + i * 2));
+        });
       }
 
-      // Auto rotation
-      if (controlsRef.current && controlsRef.current.autoRotate) {
-        controlsRef.current.update();
-      } else if (controlsRef.current) {
+      if (controlsRef.current) {
         controlsRef.current.update();
       }
 
@@ -923,7 +677,7 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
     };
     animate();
 
-    // 9. Resize Listener
+    // 9. Resize Handling
     const onResize = () => {
       if (!container || !rendererRef.current || !cameraRef.current) return;
       const newW = container.clientWidth;
@@ -943,7 +697,7 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
     };
   }, []);
 
-  // Update Board Color dynamically
+  // Sync Board Color
   useEffect(() => {
     if (boardMeshRef.current) {
       const palette = boardColors[boardColor];
@@ -954,7 +708,7 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
     }
   }, [boardColor, showWireframe, boardColors]);
 
-  // Update Auto-Rotate
+  // Sync Auto Rotate
   useEffect(() => {
     if (controlsRef.current) {
       controlsRef.current.autoRotate = autoRotate;
@@ -962,7 +716,7 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
     }
   }, [autoRotate]);
 
-  // Update Layer Visibility
+  // Sync Layers
   useEffect(() => {
     if (componentsGroupRef.current) {
       componentsGroupRef.current.visible = activeLayer === 'all' || activeLayer === 'components';
@@ -975,38 +729,51 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
     }
   }, [activeLayer]);
 
-  // Camera Presets
-  const applyViewPreset = (preset: 'iso' | 'top' | 'mcu' | 'rf' | 'ports') => {
+  // Preset Navigation
+  const applyViewPreset = (preset: typeof viewPreset) => {
     if (!cameraRef.current || !controlsRef.current) return;
     const camera = cameraRef.current;
     const controls = controlsRef.current;
     setViewPreset(preset);
 
-    if (preset === 'top') {
-      camera.position.set(0, 9.5, 0.01);
-      controls.target.set(0, 0, 0);
-    } else if (preset === 'iso') {
-      camera.position.set(4.5, 6.2, 5.8);
-      controls.target.set(0, 0, 0);
-    } else if (preset === 'mcu') {
-      camera.position.set(-1.4, 3.2, 1.2);
-      controls.target.set(-1.4, 0.1, -0.6);
-      const comp = PCB_COMPONENTS.find((c) => c.id === 'u9-mcu');
-      if (comp) setSelectedComp(comp);
-    } else if (preset === 'rf') {
-      camera.position.set(0.6, 3.2, 1.2);
-      controls.target.set(0.6, 0.1, -0.6);
-      const comp = PCB_COMPONENTS.find((c) => c.id === 'u5-lora');
-      if (comp) setSelectedComp(comp);
-    } else if (preset === 'ports') {
-      camera.position.set(0, 3.6, 4.0);
-      controls.target.set(0, 0.1, 0.8);
-      const comp = PCB_COMPONENTS.find((c) => c.id === 'j2-sensors');
-      if (comp) setSelectedComp(comp);
+    switch (preset) {
+      case 'iso':
+        camera.position.set(6.0, 9.0, 9.0);
+        controls.target.set(0, 0, 0);
+        break;
+      case 'top':
+        camera.position.set(0, 14.0, 0.01);
+        controls.target.set(0, 0, 0);
+        break;
+      case 'mcu':
+        camera.position.set(-1.8, 4.5, 2.5);
+        controls.target.set(-1.8, 0.16, -0.6);
+        setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'esp32-mcu')!);
+        break;
+      case 'bg95':
+        camera.position.set(1.2, 4.5, 3.5);
+        controls.target.set(1.2, 0.18, 0.6);
+        setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'bg95-modem')!);
+        break;
+      case 'lora':
+        camera.position.set(3.2, 4.0, 1.5);
+        controls.target.set(3.2, 0.16, -1.2);
+        setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'sx1276-lora')!);
+        break;
+      case 'power':
+        camera.position.set(-3.5, 4.5, 4.0);
+        controls.target.set(-3.2, 0.1, 1.0);
+        setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'cn3065-charger')!);
+        break;
+      case 'ports':
+        camera.position.set(-5.5, 3.5, 1.0);
+        controls.target.set(-5.6, 0.18, -0.6);
+        setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'usb-c-receptacle')!);
+        break;
     }
   };
 
-  // Handle direct custom GLB upload from user's machine
+  // Upload Custom GLB file
   const handleGlbFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !sceneRef.current) return;
@@ -1022,13 +789,12 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
         arrayBuffer as ArrayBuffer,
         '',
         (gltf) => {
-          // Hide procedural components to show user's exact GLB
           if (componentsGroupRef.current) componentsGroupRef.current.visible = false;
           if (tracesGroupRef.current) tracesGroupRef.current.visible = false;
           if (silkscreenGroupRef.current) silkscreenGroupRef.current.visible = false;
           if (boardMeshRef.current) boardMeshRef.current.visible = false;
 
-          gltf.scene.scale.set(40, 40, 40); // Standard scale adaptation for PCB models
+          gltf.scene.scale.set(30, 30, 30);
           sceneRef.current?.add(gltf.scene);
           setCustomGlbLoaded(true);
         },
@@ -1040,117 +806,119 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
     reader.readAsArrayBuffer(file);
   };
 
+  const filteredComponents = useMemo(() => {
+    return ROOT_NODE_COMPONENTS.filter((comp) => {
+      const matchesCategory = bomFilter === 'all' || comp.category === bomFilter;
+      const matchesSearch =
+        comp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        comp.designator.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        comp.description.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [bomFilter, searchQuery]);
+
   return (
-    <div className="space-y-6 pb-16">
+    <div className="pcb-section space-y-6 pb-16 text-black">
       {/* ========================================================================= */}
-      {/* 1. TOP HEADER BANNER (BorderGlow)                                         */}
+      {/* 1. ROOT NODE HERO BANNER                                                  */}
       {/* ========================================================================= */}
       <BorderGlow
         edgeSensitivity={30}
         glowColor="40 80 80"
-        backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+        backgroundColor="#ffffff"
         borderRadius={24}
         glowRadius={40}
         glowIntensity={1.0}
         coneSpread={25}
         animated={false}
-        colors={['#c084fc', '#f472b6', '#38bdf8']}
+        colors={['#06b6d4', '#10b981', '#3b82f6']}
         className="w-full"
       >
-        <div
-          className={`rounded-2xl border p-6 transition-all ${
-            isDarkMode
-              ? 'bg-slate-900/80 border-slate-800 text-white'
-              : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-          }`}
-        >
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`p-2.5 rounded-xl border ${
-                    isDarkMode
-                      ? 'bg-cyan-950/70 border-cyan-800 text-cyan-400'
-                      : 'bg-teal-50 border-teal-200 text-teal-800'
-                  }`}
-                >
-                  <Cpu className="w-5 h-5" />
+        <div className="rounded-2xl border p-6 transition-all bg-white border-slate-200 text-black shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-cyan-100 border border-cyan-300 text-cyan-800">
+                  <Cpu className="w-6 h-6" />
                 </div>
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2">
-                    <span>ENVORA Field Node Hardware & 3D PCB Architecture</span>
-                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-xl sm:text-2xl font-black tracking-tight text-black">
+                      Root Node: The Gateway Board
+                    </h1>
+                    <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-emerald-100 text-black font-bold border border-emerald-300">
                       Rev 2.4 Production
                     </span>
-                  </h1>
-                  <p className="text-xs opacity-75 mt-0.5 max-w-3xl">
-                    Solar-harvesting environmental telemetry motherboard deployed across {location.name}. Features hardware edge AI, dual-core MCU, Semtech IN865 LoRa mesh radio, and multi-sensor hydrostatic depth probe interfaces.
+                  </div>
+                  <p className="text-xs text-black font-semibold mt-0.5">
+                    Deployed at <span className="text-black font-black underline decoration-cyan-500 decoration-2">{location.name}</span> Monitoring Basin • Autonomous Telemetry & Edge AI
                   </p>
                 </div>
               </div>
+              <p className="text-xs sm:text-sm text-black max-w-4xl leading-relaxed font-medium">
+                One root node covers an entire monitored area. It listens to the LoRa leaf nodes, runs edge AI on what they report, and pushes alerts and readings to the dashboard over NB-IoT. Powered by an 18650 rechargeable battery with solar harvesting.
+              </p>
             </div>
 
-            {/* Quick action buttons & View mode tabs */}
+            {/* Navigation Tabs */}
             <div className="flex flex-wrap items-center gap-2">
-              <div
-                className={`p-1 rounded-xl border flex items-center gap-1 ${
-                  isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
-                }`}
-              >
+              <div className="p-1 rounded-xl border border-slate-300 bg-slate-100 flex items-center gap-1 shadow-xs">
                 <button
                   onClick={() => setActiveTabMode('3d')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeTabMode === '3d'
-                      ? isDarkMode
-                        ? 'bg-cyan-500 text-slate-950 shadow-md'
-                        : 'bg-teal-700 text-white shadow-xs'
-                      : 'opacity-70 hover:opacity-100'
+                      ? 'bg-black text-white shadow-md'
+                      : 'text-black hover:bg-slate-200'
                   }`}
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
-                  <span>Interactive 3D PCB</span>
+                  <span>3D Digital Twin</span>
                 </button>
 
                 <button
                   onClick={() => setActiveTabMode('schematic')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeTabMode === 'schematic'
-                      ? isDarkMode
-                        ? 'bg-cyan-500 text-slate-950 shadow-md'
-                        : 'bg-teal-700 text-white shadow-xs'
-                      : 'opacity-70 hover:opacity-100'
+                      ? 'bg-black text-white shadow-md'
+                      : 'text-black hover:bg-slate-200'
                   }`}
                 >
                   <Layers className="w-3.5 h-3.5" />
-                  <span>Engineering Layout & Photos</span>
+                  <span>KiCad 2D Layout</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTabMode('datapath')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeTabMode === 'datapath'
+                      ? 'bg-black text-white shadow-md'
+                      : 'text-black hover:bg-slate-200'
+                  }`}
+                >
+                  <GitBranch className="w-3.5 h-3.5" />
+                  <span>Architecture & Data Path</span>
                 </button>
 
                 <button
                   onClick={() => setActiveTabMode('specs')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeTabMode === 'specs'
-                      ? isDarkMode
-                        ? 'bg-cyan-500 text-slate-950 shadow-md'
-                        : 'bg-teal-700 text-white shadow-xs'
-                      : 'opacity-70 hover:opacity-100'
+                      ? 'bg-black text-white shadow-md'
+                      : 'text-black hover:bg-slate-200'
                   }`}
                 >
                   <Sliders className="w-3.5 h-3.5" />
-                  <span>Hardware BOM & Netlist</span>
+                  <span>BOM & Hardware</span>
                 </button>
               </div>
 
-              {/* Upload custom GLB button */}
+              {/* Upload GLB */}
               <label
-                className={`px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${
-                  isDarkMode
-                    ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700'
-                    : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-xs'
-                }`}
-                title="Drop your own exported .glb from KiCad / Altium"
+                className="px-3 py-2 rounded-xl border border-slate-300 text-xs font-black flex items-center gap-1.5 cursor-pointer transition-all bg-white hover:bg-slate-100 text-black shadow-xs"
+                title="Load your own .glb from KiCad"
               >
-                <Upload className="w-3.5 h-3.5 text-cyan-400" />
-                <span>{customGlbLoaded ? `Loaded: ${customGlbName}` : 'Load Custom .GLB'}</span>
+                <Upload className="w-3.5 h-3.5 text-black" />
+                <span className="text-black font-bold">{customGlbLoaded ? customGlbName : 'Import KiCad .GLB'}</span>
                 <input
                   type="file"
                   accept=".glb,.gltf"
@@ -1160,11 +928,39 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
               </label>
             </div>
           </div>
+
+          {/* Quick Specifications Strip */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mt-5 pt-4 border-t border-slate-200 text-xs">
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+              <span className="text-black block text-[10px] uppercase font-mono font-bold">Board Dimensions</span>
+              <span className="font-black text-black text-sm">{ROOT_BOARD_SPEC.dimensions}</span>
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+              <span className="text-black block text-[10px] uppercase font-mono font-bold">Board Thickness</span>
+              <span className="font-black text-black text-sm">{ROOT_BOARD_SPEC.thickness}</span>
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+              <span className="text-black block text-[10px] uppercase font-mono font-bold">Radios (3 Co-Located)</span>
+              <span className="font-black text-black text-sm">LoRa, NB-IoT, USB-UART</span>
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+              <span className="text-black block text-[10px] uppercase font-mono font-bold">Power & Battery</span>
+              <span className="font-black text-black text-sm">18650 Li-Ion + Solar In</span>
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+              <span className="text-black block text-[10px] uppercase font-mono font-bold">Core Processor</span>
+              <span className="font-black text-black text-sm">ESP32-S3 Dual-Core</span>
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+              <span className="text-black block text-[10px] uppercase font-mono font-bold">Cellular Modem</span>
+              <span className="font-black text-black text-sm">Quectel BG95-M3</span>
+            </div>
+          </div>
         </div>
       </BorderGlow>
 
       {/* ========================================================================= */}
-      {/* 2. MAIN INTERACTIVE 3D PCB CANVAS VIEW                                    */}
+      {/* 2. TAB 1: INTERACTIVE 3D DIGITAL TWIN                                      */}
       {/* ========================================================================= */}
       {activeTabMode === '3d' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1173,155 +969,157 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
             <BorderGlow
               edgeSensitivity={30}
               glowColor="40 80 80"
-              backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+              backgroundColor="#ffffff"
               borderRadius={24}
               glowRadius={40}
               glowIntensity={1.0}
               coneSpread={25}
               animated={false}
-              colors={['#c084fc', '#f472b6', '#38bdf8']}
+              colors={['#06b6d4', '#10b981', '#3b82f6']}
               className="w-full"
             >
-              <div
-                className={`relative rounded-2xl border overflow-hidden transition-all ${
-                  isDarkMode
-                    ? 'bg-slate-950/90 border-slate-800 text-white shadow-2xl'
-                    : 'bg-slate-900 border-slate-200 text-white shadow-xl'
-                }`}
-              >
-                {/* 3D Canvas Mount Point */}
+              <div className="relative rounded-2xl border border-slate-200 overflow-hidden transition-all bg-slate-900 text-black shadow-xl">
+                {/* 3D Canvas */}
                 <div
                   ref={mountRef}
                   className="w-full h-[520px] sm:h-[620px] cursor-grab active:cursor-grabbing select-none"
                 />
 
-                {/* Interactive HUD Overlay Toolbar on top of 3D Canvas */}
+                {/* Top Controls Overlay */}
                 <div className="absolute top-4 left-4 right-4 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-                  {/* Preset Camera Viewpoints */}
-                  <div className="flex flex-wrap items-center gap-1.5 p-1.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-slate-800 pointer-events-auto shadow-lg">
-                    <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 px-2 flex items-center gap-1">
-                      <Camera className="w-3 h-3 text-cyan-400" />
-                      <span>Camera:</span>
+                  {/* Camera Presets */}
+                  <div className="flex flex-wrap items-center gap-1.5 p-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-300 pointer-events-auto shadow-lg text-black">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-black font-black px-2 flex items-center gap-1">
+                      <Camera className="w-3.5 h-3.5 text-black" />
+                      <span className="text-black font-black">Focus:</span>
                     </span>
                     <button
                       onClick={() => applyViewPreset('iso')}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                        viewPreset === 'iso' ? 'bg-cyan-500 text-slate-950' : 'text-slate-300 hover:text-white'
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                        viewPreset === 'iso' ? 'bg-black text-white' : 'text-black hover:bg-slate-100'
                       }`}
                     >
                       3D Iso
                     </button>
                     <button
                       onClick={() => applyViewPreset('top')}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                        viewPreset === 'top' ? 'bg-cyan-500 text-slate-950' : 'text-slate-300 hover:text-white'
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                        viewPreset === 'top' ? 'bg-black text-white' : 'text-black hover:bg-slate-100'
                       }`}
                     >
                       Top-Down
                     </button>
                     <button
                       onClick={() => applyViewPreset('mcu')}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                        viewPreset === 'mcu' ? 'bg-cyan-500 text-slate-950' : 'text-slate-300 hover:text-white'
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                        viewPreset === 'mcu' ? 'bg-black text-white' : 'text-black hover:bg-slate-100'
                       }`}
                     >
-                      MCU Core (U9)
+                      ESP32-S3 (U1)
                     </button>
                     <button
-                      onClick={() => applyViewPreset('rf')}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                        viewPreset === 'rf' ? 'bg-cyan-500 text-slate-950' : 'text-slate-300 hover:text-white'
+                      onClick={() => applyViewPreset('bg95')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                        viewPreset === 'bg95' ? 'bg-black text-white' : 'text-black hover:bg-slate-100'
                       }`}
                     >
-                      LoRa RF (U5)
+                      BG95-M3 (U5)
                     </button>
                     <button
-                      onClick={() => applyViewPreset('ports')}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                        viewPreset === 'ports' ? 'bg-cyan-500 text-slate-950' : 'text-slate-300 hover:text-white'
+                      onClick={() => applyViewPreset('lora')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                        viewPreset === 'lora' ? 'bg-black text-white' : 'text-black hover:bg-slate-100'
                       }`}
                     >
-                      Sensors & I/O
+                      SX1276 (U4)
+                    </button>
+                    <button
+                      onClick={() => applyViewPreset('power')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                        viewPreset === 'power' ? 'bg-black text-white' : 'text-black hover:bg-slate-100'
+                      }`}
+                    >
+                      Battery / Power
                     </button>
                   </div>
 
-                  {/* Solder Mask Color Selection & Auto-Rotate */}
-                  <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-slate-800 pointer-events-auto shadow-lg">
-                    <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 px-1">Mask:</span>
+                  {/* Solder Mask Color Selection & Wireframe */}
+                  <div className="flex items-center gap-2 p-1.5 rounded-xl bg-white/95 backdrop-blur-md border border-slate-300 pointer-events-auto shadow-lg text-black">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-black font-black px-1">PCB Solder Mask:</span>
                     <button
                       onClick={() => setBoardColor('green')}
                       className={`w-5 h-5 rounded-full border-2 transition-transform ${
-                        boardColor === 'green' ? 'scale-110 border-white' : 'border-transparent opacity-70'
+                        boardColor === 'green' ? 'scale-110 border-black ring-2 ring-emerald-500/50' : 'border-transparent opacity-70'
                       }`}
-                      style={{ backgroundColor: '#0e3b26' }}
-                      title="Emerald Green Mask (Default)"
+                      style={{ backgroundColor: '#0c331e' }}
+                      title="KiCad Forest Green (Default)"
                     />
                     <button
                       onClick={() => setBoardColor('dark')}
                       className={`w-5 h-5 rounded-full border-2 transition-transform ${
-                        boardColor === 'dark' ? 'scale-110 border-white' : 'border-transparent opacity-70'
+                        boardColor === 'dark' ? 'scale-110 border-black ring-2 ring-slate-500/50' : 'border-transparent opacity-70'
                       }`}
                       style={{ backgroundColor: '#11161d' }}
-                      title="Matte Dark Navy Mask"
+                      title="Matte Stealth Dark"
                     />
                     <button
                       onClick={() => setBoardColor('blue')}
                       className={`w-5 h-5 rounded-full border-2 transition-transform ${
-                        boardColor === 'blue' ? 'scale-110 border-white' : 'border-transparent opacity-70'
+                        boardColor === 'blue' ? 'scale-110 border-black ring-2 ring-blue-500/50' : 'border-transparent opacity-70'
                       }`}
                       style={{ backgroundColor: '#092b47' }}
-                      title="Royal Blue Mask"
+                      title="Royal Blue"
                     />
                     <button
-                      onClick={() => setBoardColor('black')}
+                      onClick={() => setBoardColor('purple')}
                       className={`w-5 h-5 rounded-full border-2 transition-transform ${
-                        boardColor === 'black' ? 'scale-110 border-white' : 'border-transparent opacity-70'
+                        boardColor === 'purple' ? 'scale-110 border-black ring-2 ring-purple-500/50' : 'border-transparent opacity-70'
                       }`}
-                      style={{ backgroundColor: '#09090b' }}
-                      title="Matte Stealth Black"
+                      style={{ backgroundColor: '#241138' }}
+                      title="OSH Park Purple"
                     />
 
-                    <div className="h-4 w-[1px] bg-slate-800 mx-1" />
+                    <div className="h-4 w-[1px] bg-slate-300 mx-1" />
 
                     <button
                       onClick={() => setAutoRotate(!autoRotate)}
-                      className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-colors cursor-pointer ${
-                        autoRotate ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50' : 'text-slate-400 hover:text-white'
+                      className={`p-1.5 rounded-lg text-xs font-black flex items-center gap-1 transition-colors cursor-pointer ${
+                        autoRotate ? 'bg-cyan-100 text-black border border-cyan-400' : 'text-black hover:bg-slate-100'
                       }`}
-                      title="Toggle Continuous Turntable Auto-Rotate"
+                      title="Toggle Auto-Rotation"
                     >
-                      <RotateCw className={`w-3.5 h-3.5 ${autoRotate ? 'animate-spin' : ''}`} />
-                      <span className="hidden sm:inline">Rotate</span>
+                      <RotateCw className={`w-3.5 h-3.5 ${autoRotate ? 'animate-spin text-black' : 'text-black'}`} />
+                      <span className="hidden sm:inline text-black">Rotate</span>
                     </button>
 
                     <button
                       onClick={() => setShowWireframe(!showWireframe)}
-                      className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-colors cursor-pointer ${
-                        showWireframe ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50' : 'text-slate-400 hover:text-white'
+                      className={`p-1.5 rounded-lg text-xs font-black flex items-center gap-1 transition-colors cursor-pointer ${
+                        showWireframe ? 'bg-cyan-100 text-black border border-cyan-400' : 'text-black hover:bg-slate-100'
                       }`}
-                      title="Toggle Wireframe Mesh"
+                      title="Toggle Wireframe CAD Mode"
                     >
-                      <Eye className="w-3.5 h-3.5" />
+                      <Eye className="w-3.5 h-3.5 text-black" />
                     </button>
                   </div>
                 </div>
 
-                {/* Bottom HUD: Layer Filter Bar & Hover Information */}
+                {/* Bottom HUD: Layer Filter Bar & Interactive Tooltip */}
                 <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
                   {/* Layer Filters */}
-                  <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-950/85 backdrop-blur-md border border-slate-800 pointer-events-auto shadow-lg text-xs">
-                    <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 px-2 flex items-center gap-1">
-                      <Layers className="w-3 h-3 text-cyan-400" />
-                      <span>Layers:</span>
+                  <div className="flex items-center gap-1 p-1 rounded-xl bg-white/95 backdrop-blur-md border border-slate-300 pointer-events-auto shadow-lg text-xs text-black">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-black font-black px-2 flex items-center gap-1">
+                      <Layers className="w-3 h-3 text-black" />
+                      <span className="text-black">Layers:</span>
                     </span>
                     {(['all', 'components', 'traces', 'silkscreen'] as const).map((layer) => (
                       <button
                         key={layer}
                         onClick={() => setActiveLayer(layer)}
-                        className={`px-2.5 py-1 rounded-lg font-semibold capitalize transition-colors cursor-pointer ${
+                        className={`px-2.5 py-1 rounded-lg font-black capitalize transition-colors cursor-pointer ${
                           activeLayer === layer
-                            ? 'bg-slate-800 text-cyan-300 border border-slate-700'
-                            : 'text-slate-400 hover:text-white'
+                            ? 'bg-black text-white'
+                            : 'text-black hover:bg-slate-100'
                         }`}
                       >
                         {layer}
@@ -1329,81 +1127,24 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
                     ))}
                   </div>
 
-                  {/* Hover component pill */}
-                  {hoveredComp && (
-                    <div className="p-2 px-3.5 rounded-xl bg-cyan-950/90 border border-cyan-500/60 text-cyan-200 backdrop-blur-md shadow-xl text-xs flex items-center gap-2 pointer-events-auto animate-pulse">
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                      <span className="font-mono font-bold">{hoveredComp.designator}:</span>
-                      <span>{hoveredComp.name}</span>
-                      <span className="opacity-60 font-mono text-[10px] border border-cyan-800 px-1 rounded">
+                  {/* Hover or Instructions indicator */}
+                  {hoveredComp ? (
+                    <div className="p-2 px-3.5 rounded-xl bg-white/95 border border-cyan-500 text-black backdrop-blur-md shadow-xl text-xs flex items-center gap-2 pointer-events-auto font-black animate-pulse">
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
+                      <span className="font-mono font-black text-black">{hoveredComp.designator}:</span>
+                      <span className="text-black font-bold">{hoveredComp.name}</span>
+                      <span className="font-mono text-[10px] bg-slate-100 border border-slate-300 px-1.5 py-0.5 rounded text-black font-black">
                         Click to Inspect
                       </span>
                     </div>
-                  )}
-
-                  {!hoveredComp && (
-                    <div className="hidden sm:flex items-center gap-2 p-2 px-3 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] font-mono opacity-70">
-                      <span>Click any component to inspect pinout & netlist</span>
+                  ) : (
+                    <div className="hidden sm:flex items-center gap-2 p-2 px-3 rounded-xl bg-white/90 border border-slate-300 text-[11px] font-mono text-black font-black shadow-md">
+                      <span className="text-black">Click any component on the board to view full schematics</span>
                     </div>
                   )}
                 </div>
               </div>
             </BorderGlow>
-
-            {/* Quick interactive board spec indicators */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div
-                className={`p-3.5 rounded-xl border text-xs ${
-                  isDarkMode ? 'bg-slate-900/80 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-                }`}
-              >
-                <div className="flex items-center justify-between opacity-60 mb-1">
-                  <span>Substrate & Layers</span>
-                  <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                </div>
-                <div className="text-base font-bold font-mono">4-Layer FR-4 (1.6mm)</div>
-                <div className="text-[10px] opacity-60 mt-0.5">Top / GND / PWR / Bottom</div>
-              </div>
-
-              <div
-                className={`p-3.5 rounded-xl border text-xs ${
-                  isDarkMode ? 'bg-slate-900/80 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-                }`}
-              >
-                <div className="flex items-center justify-between opacity-60 mb-1">
-                  <span>Surface Finish</span>
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                </div>
-                <div className="text-base font-bold font-mono">ENIG Gold (RoHS)</div>
-                <div className="text-[10px] opacity-60 mt-0.5">Electroless Nickel Immersion</div>
-              </div>
-
-              <div
-                className={`p-3.5 rounded-xl border text-xs ${
-                  isDarkMode ? 'bg-slate-900/80 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-                }`}
-              >
-                <div className="flex items-center justify-between opacity-60 mb-1">
-                  <span>RF Frequency</span>
-                  <Radio className="w-3.5 h-3.5 text-emerald-400" />
-                </div>
-                <div className="text-base font-bold font-mono text-emerald-400">865 – 867 MHz</div>
-                <div className="text-[10px] opacity-60 mt-0.5">India WPC De-licensed Band</div>
-              </div>
-
-              <div
-                className={`p-3.5 rounded-xl border text-xs ${
-                  isDarkMode ? 'bg-slate-900/80 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-                }`}
-              >
-                <div className="flex items-center justify-between opacity-60 mb-1">
-                  <span>Power Buffer</span>
-                  <BatteryCharging className="w-3.5 h-3.5 text-teal-400" />
-                </div>
-                <div className="text-base font-bold font-mono">Solar + LiFePO4</div>
-                <div className="text-[10px] opacity-60 mt-0.5">3.2V 3200mAh + 6V Solar</div>
-              </div>
-            </div>
           </div>
 
           {/* Right Column (4 cols): Detailed Selected Component Inspector */}
@@ -1411,127 +1152,103 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
             <BorderGlow
               edgeSensitivity={30}
               glowColor="40 80 80"
-              backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+              backgroundColor="#ffffff"
               borderRadius={24}
               glowRadius={40}
               glowIntensity={1.0}
               coneSpread={25}
               animated={false}
-              colors={['#c084fc', '#f472b6', '#38bdf8']}
+              colors={['#06b6d4', '#10b981', '#3b82f6']}
               className="w-full"
             >
-              <div
-                className={`rounded-2xl border p-5 transition-all ${
-                  isDarkMode
-                    ? 'bg-slate-900/80 border-slate-800 text-white'
-                    : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-                }`}
-              >
+              <div className="rounded-2xl border p-5 transition-all bg-white border-slate-200 text-black shadow-sm">
                 {/* Component Inspector Header */}
-                <div className="flex items-start justify-between gap-3 border-b border-current/10 pb-4 mb-4">
+                <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4 mb-4">
                   <div>
-                    <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border border-cyan-500/40 text-cyan-400 bg-cyan-950/40">
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border border-cyan-300 text-black bg-cyan-50 font-black">
                       Component Inspector
                     </span>
-                    <h2 className="text-lg font-black mt-2 flex items-center gap-2">
-                      <span className="text-cyan-400 font-mono">{selectedComp.designator}</span>
-                      <span>—</span>
-                      <span className="text-sm">{selectedComp.name}</span>
+                    <h2 className="text-lg font-black mt-2 flex items-center gap-2 text-black">
+                      <span className="text-black font-mono font-black">{selectedComp.designator}</span>
+                      <span className="text-black font-bold">—</span>
+                      <span className="text-sm font-black text-black">{selectedComp.name}</span>
                     </h2>
-                    <span className="text-[11px] font-mono opacity-60 mt-0.5 block">
+                    <span className="text-[11px] font-mono text-black font-bold mt-0.5 block">
                       Footprint: {selectedComp.package}
                     </span>
                   </div>
 
-                  <div className="p-2.5 rounded-xl border border-current/10 shrink-0">
-                    {selectedComp.category === 'mcu' && <Cpu className="w-5 h-5 text-cyan-400" />}
-                    {selectedComp.category === 'rf' && <Radio className="w-5 h-5 text-sky-400" />}
-                    {selectedComp.category === 'sensor' && <Zap className="w-5 h-5 text-amber-400" />}
-                    {selectedComp.category === 'power' && <BatteryCharging className="w-5 h-5 text-emerald-400" />}
-                    {selectedComp.category === 'connector' && <Usb className="w-5 h-5 text-indigo-400" />}
-                    {selectedComp.category === 'indicator' && <Volume2 className="w-5 h-5 text-red-400" />}
-                    {selectedComp.category === 'passive' && <Microchip className="w-5 h-5 text-teal-400" />}
+                  <div className="p-2.5 rounded-xl border border-slate-300 bg-slate-50 shrink-0 text-black shadow-2xs">
+                    {selectedComp.category === 'mcu' && <Cpu className="w-5 h-5 text-cyan-800" />}
+                    {selectedComp.category === 'rf' && <Radio className="w-5 h-5 text-sky-800" />}
+                    {selectedComp.category === 'sensor' && <Zap className="w-5 h-5 text-amber-800" />}
+                    {selectedComp.category === 'power' && <BatteryCharging className="w-5 h-5 text-emerald-800" />}
+                    {selectedComp.category === 'connector' && <Usb className="w-5 h-5 text-indigo-800" />}
+                    {selectedComp.category === 'indicator' && <Volume2 className="w-5 h-5 text-red-800" />}
+                    {selectedComp.category === 'passive' && <Microchip className="w-5 h-5 text-teal-800" />}
                   </div>
                 </div>
 
-                <p className="text-xs opacity-80 leading-relaxed mb-4">
-                  {selectedComp.description}
-                </p>
-
-                {/* Technical Specifications Table */}
-                <div className="space-y-3 mb-5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider opacity-70 flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Technical Ratings</span>
-                  </h3>
-                  <div
-                    className={`rounded-xl border divide-y divide-current/10 overflow-hidden text-xs ${
-                      isDarkMode ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
-                    }`}
-                  >
-                    {Object.entries(selectedComp.specs).map(([specKey, specVal]) => (
-                      <div key={specKey} className="px-3.5 py-2 flex items-center justify-between gap-2">
-                        <span className="opacity-70 font-medium">{specKey}:</span>
-                        <span className="font-mono font-bold text-right">{specVal}</span>
-                      </div>
-                    ))}
+                <div className="space-y-4">
+                  <div className="text-xs text-black leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200 font-medium">
+                    {selectedComp.description}
                   </div>
-                </div>
 
-                {/* Connected Netlist Signals */}
-                <div className="space-y-2 mb-5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider opacity-70 flex items-center gap-1.5">
-                    <Activity className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Connected Signal Nets ({selectedComp.nets.length})</span>
-                  </h3>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedComp.nets.map((net) => (
-                      <span
-                        key={net}
-                        className={`text-[10px] font-mono px-2 py-1 rounded-md border font-semibold ${
-                          net.includes('3V3') || net.includes('5V') || net.includes('VBAT')
-                            ? isDarkMode
-                              ? 'bg-red-950/40 text-red-300 border-red-800'
-                              : 'bg-red-50 text-red-800 border-red-200'
-                            : net.includes('GND')
-                            ? isDarkMode
-                              ? 'bg-slate-800 text-slate-300 border-slate-700'
-                              : 'bg-slate-200 text-slate-700 border-slate-300'
-                            : isDarkMode
-                            ? 'bg-cyan-950/50 text-cyan-300 border-cyan-800'
-                            : 'bg-teal-50 text-teal-800 border-teal-200'
-                        }`}
-                      >
-                        {net}
-                      </span>
-                    ))}
+                  {/* Technical Specifications Table */}
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-black flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5 text-black" />
+                      <span className="text-black">Electrical Parameters</span>
+                    </h3>
+                    <div className="rounded-xl border border-slate-200 divide-y divide-slate-200 overflow-hidden text-xs bg-slate-50">
+                      {Object.entries(selectedComp.specs).map(([specKey, specVal]) => (
+                        <div key={specKey} className="px-3 py-2 flex items-center justify-between gap-2">
+                          <span className="text-black font-bold">{specKey}:</span>
+                          <span className="font-mono font-black text-right text-black">{specVal}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* Quick Component Selector list */}
-                <div className="space-y-2 pt-2 border-t border-current/10">
-                  <span className="text-[11px] font-semibold opacity-70 block mb-1">
-                    Select Another Component:
-                  </span>
-                  <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
-                    {PCB_COMPONENTS.map((c) => (
-                      <button
-                        key={c.id}
-                        onClick={() => setSelectedComp(c)}
-                        className={`px-2.5 py-1.5 rounded-lg text-left text-xs font-mono transition-all border cursor-pointer ${
-                          selectedComp.id === c.id
-                            ? isDarkMode
-                              ? 'bg-cyan-950 text-cyan-300 border-cyan-500 font-bold'
-                              : 'bg-teal-50 text-teal-900 border-teal-600 font-bold'
-                            : isDarkMode
-                            ? 'bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-300'
-                            : 'bg-slate-50 border-slate-200 hover:border-slate-300 text-slate-700'
-                        }`}
-                      >
-                        <span className="font-bold">{c.designator}</span>{' '}
-                        <span className="opacity-70 text-[10px] block truncate">{c.name}</span>
-                      </button>
-                    ))}
+                  {/* Connected Netlist Signals */}
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-black flex items-center gap-1.5">
+                      <Activity className="w-3.5 h-3.5 text-emerald-700" />
+                      <span className="text-black">Associated PCB Nets ({selectedComp.nets.length})</span>
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedComp.nets.map((net) => (
+                        <span
+                          key={net}
+                          className="text-[10px] font-mono px-2 py-1 rounded-md border font-black text-black bg-slate-100 border-slate-300"
+                        >
+                          {net}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Quick Component Selector list */}
+                  <div className="space-y-2 pt-2 border-t border-slate-200">
+                    <span className="text-[11px] font-black text-black block mb-1">
+                      Quick Pick Component:
+                    </span>
+                    <div className="grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto pr-1">
+                      {ROOT_NODE_COMPONENTS.map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => setSelectedComp(c)}
+                          className={`px-2 py-1.5 rounded-lg text-left text-xs font-mono transition-all border cursor-pointer ${
+                            selectedComp.id === c.id
+                              ? 'bg-black text-white border-black font-black shadow-sm'
+                              : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-black'
+                          }`}
+                        >
+                          <span className={`font-black ${selectedComp.id === c.id ? 'text-white' : 'text-black'}`}>{c.designator}</span>{' '}
+                          <span className={`text-[10px] block truncate font-bold ${selectedComp.id === c.id ? 'text-slate-200' : 'text-black'}`}>{c.name}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1541,246 +1258,555 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
       )}
 
       {/* ========================================================================= */}
-      {/* 3. ENGINEERING LAYOUT & HIGH-RES PCB REFERENCE PHOTOS TAB                 */}
+      {/* 3. TAB 2: KICAD 2D CAD LAYOUT (Interactive Vector Representation)          */}
       {/* ========================================================================= */}
       {activeTabMode === 'schematic' && (
+        <BorderGlow
+          edgeSensitivity={30}
+          glowColor="40 80 80"
+          backgroundColor="#ffffff"
+          borderRadius={24}
+          glowRadius={40}
+          glowIntensity={1.0}
+          coneSpread={25}
+          animated={false}
+          colors={['#06b6d4', '#10b981', '#3b82f6']}
+          className="w-full"
+        >
+          <div className="rounded-2xl border p-6 transition-all bg-white border-slate-200 text-black shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200">
+              <div>
+                <h2 className="text-lg font-black flex items-center gap-2 text-black">
+                  <Layers className="w-5 h-5 text-black" />
+                  <span>Root Node KiCad Top-Layer SMT Gerber & Placement</span>
+                </h2>
+                <p className="text-xs text-black font-semibold mt-1">
+                  137.5 × 77.5 mm Board Form Factor • 1.6 mm FR-4 Double-Sided Routing with 50Ω Controlled Impedance Traces
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono px-3 py-1 bg-emerald-100 text-black border border-emerald-300 rounded-lg font-black">
+                  Active Selected: <strong className="text-black font-black">{selectedComp.designator} ({selectedComp.name})</strong>
+                </span>
+              </div>
+            </div>
+
+            {/* Interactive SVG replicating the exact uploaded KiCad Layout image.png with Black Typography */}
+            <div className="bg-[#0b1f15] border border-emerald-900/70 rounded-xl p-4 sm:p-8 flex items-center justify-center overflow-x-auto shadow-2xl relative">
+              <svg
+                viewBox="0 0 1375 775"
+                className="w-full max-w-5xl h-auto"
+                style={{ filter: 'drop-shadow(0 15px 30px rgba(0,0,0,0.7))' }}
+              >
+                {/* PCB Outline */}
+                <rect x="10" y="10" width="1355" height="755" rx="20" fill="#0d2518" stroke="#1b4d31" strokeWidth="4" />
+
+                {/* Corner Mounting Holes M3 with annular copper rings */}
+                <g fill="none" stroke="#d4af37" strokeWidth="5">
+                  <circle cx="50" cy="50" r="28" />
+                  <circle cx="1325" cy="50" r="28" />
+                  <circle cx="1325" cy="725" r="28" />
+                  <circle cx="50" cy="725" r="28" />
+                </g>
+                <g fill="#050d08">
+                  <circle cx="50" cy="50" r="16" />
+                  <circle cx="1325" cy="50" r="16" />
+                  <circle cx="1325" cy="725" r="16" />
+                  <circle cx="50" cy="725" r="16" />
+                </g>
+
+                {/* Ground plane decorative copper zones & thermal relief */}
+                <path d="M 60 60 L 1315 60 L 1315 715 L 60 715 Z" fill="none" stroke="#123d24" strokeWidth="2" strokeDasharray="6 6" />
+
+                {/* COPPER TRACES (drawn as matching image.png) */}
+                <g stroke="#2bb563" strokeWidth="4" fill="none" strokeLinecap="round" opacity="0.85">
+                  {/* USB-C to CH340K traces */}
+                  <path d="M 80 180 L 170 180 L 220 220 L 290 220" />
+                  <path d="M 80 200 L 160 200 L 210 240 L 290 240" />
+
+                  {/* CH340K to ESP32 UART */}
+                  <path d="M 370 240 L 460 240 L 510 280 L 580 280" />
+                  <path d="M 370 260 L 450 260 L 500 300 L 580 300" />
+
+                  {/* Auto reset lines */}
+                  <path d="M 370 200 L 420 150 L 480 150" />
+                  <path d="M 520 150 L 580 150 L 610 180" />
+
+                  {/* Top route to SW1 & Q1 */}
+                  <path d="M 490 80 L 670 80 L 670 170" />
+                  <path d="M 690 120 L 710 120 L 710 200" />
+
+                  {/* U4 (SX1276) SPI Bus from ESP32 */}
+                  <path d="M 750 320 L 890 320 L 930 260 L 1050 260" />
+                  <path d="M 750 340 L 880 340 L 920 280 L 1050 280" />
+                  <path d="M 750 360 L 870 360 L 910 300 L 1050 300" />
+                  <path d="M 750 380 L 860 380 L 900 320 L 1050 320" />
+
+                  {/* SX1276 ANT to RF1 (50-Ohm Controlled Track) */}
+                  <path d="M 1210 240 L 1240 240 L 1240 130 L 1210 100" stroke="#facc15" strokeWidth="8" />
+
+                  {/* ESP32 to Level Shifter (TXS0102) & BG95-M3 */}
+                  <path d="M 720 480 L 720 540 L 760 540" />
+                  <path d="M 740 480 L 740 560 L 760 560" />
+                  <path d="M 830 540 L 870 540 L 900 520 L 940 520" />
+                  <path d="M 830 560 L 870 560 L 900 540 L 940 540" />
+
+                  {/* BG95-M3 to RF2 Antenna (Cellular 50-Ohm Microstrip) */}
+                  <path d="M 940 600 L 780 600 L 720 670" stroke="#facc15" strokeWidth="8" />
+
+                  {/* BG95-M3 to SIM1 */}
+                  <path d="M 1080 500 L 1150 500" />
+                  <path d="M 1080 520 L 1150 520" />
+                  <path d="M 1080 540 L 1150 540" />
+                  <path d="M 1080 560 L 1150 560" />
+
+                  {/* P1 Battery to CN3065, DW01A, D1 */}
+                  <path d="M 330 520 L 260 520 L 220 560" stroke="#f97316" strokeWidth="6" />
+                  <path d="M 280 520 L 280 430 L 350 430" stroke="#f97316" strokeWidth="6" />
+                  <path d="M 390 520 L 460 520 L 460 580" stroke="#f97316" strokeWidth="6" />
+
+                  {/* J1 Sensor Port to ESP32 */}
+                  <path d="M 220 330 L 320 330 L 370 380 L 580 380" />
+                  <path d="M 220 350 L 310 350 L 360 400 L 580 400" />
+
+                  {/* BUZZER1 to Q4 */}
+                  <path d="M 150 450 L 200 450 L 230 480" />
+                </g>
+
+                {/* ================= COMPONENT FOOTPRINTS ================= */}
+                {/* U1: ESP32-S3-WROOM-1 Module */}
+                <g
+                  className="cursor-pointer transition-all hover:opacity-80"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'esp32-mcu')!)}
+                >
+                  <rect
+                    x="580"
+                    y="220"
+                    width="190"
+                    height="270"
+                    rx="8"
+                    fill={selectedComp.id === 'esp32-mcu' ? '#cbd5e1' : '#f1f5f9'}
+                    stroke={selectedComp.id === 'esp32-mcu' ? '#0284c7' : '#000000'}
+                    strokeWidth={selectedComp.id === 'esp32-mcu' ? '4' : '2'}
+                  />
+                  {/* Antenna PCB area on top */}
+                  <rect x="585" y="225" width="180" height="60" rx="4" fill="#e2e8f0" stroke="#eab308" strokeWidth="1.5" />
+                  <path d="M 600 240 L 750 240 M 600 255 L 750 255 M 630 240 L 630 270 M 700 240 L 700 270" stroke="#000000" strokeWidth="2.5" />
+                  {/* Metal Shield Can */}
+                  <rect x="590" y="295" width="170" height="185" rx="6" fill="#ffffff" stroke="#000000" strokeWidth="2" />
+                  <text x="675" y="380" fill="#000000" fontSize="18" fontWeight="900" textAnchor="middle" fontFamily="monospace">ESP32-S3</text>
+                  <text x="675" y="405" fill="#000000" fontSize="13" fontWeight="bold" textAnchor="middle" fontFamily="monospace">WROOM-1-N8 (8MB)</text>
+                  <text x="675" y="425" fill="#000000" fontSize="11" fontWeight="900" textAnchor="middle" fontFamily="monospace">EDGE AI CORE</text>
+                </g>
+
+                {/* U5: Quectel BG95-M3 Cellular Modem */}
+                <g
+                  className="cursor-pointer transition-all hover:opacity-80"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'bg95-modem')!)}
+                >
+                  <rect
+                    x="940"
+                    y="430"
+                    width="180"
+                    height="200"
+                    rx="6"
+                    fill={selectedComp.id === 'bg95-modem' ? '#fde68a' : '#f8fafc'}
+                    stroke={selectedComp.id === 'bg95-modem' ? '#d97706' : '#000000'}
+                    strokeWidth={selectedComp.id === 'bg95-modem' ? '4' : '2'}
+                  />
+                  {/* LGA Pins border simulation */}
+                  <g fill="#d4af37">
+                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((p) => (
+                      <React.Fragment key={p}>
+                        <rect x={950 + p * 13} y="422" width="8" height="14" rx="1" />
+                        <rect x={950 + p * 13} y="624" width="8" height="14" rx="1" />
+                      </React.Fragment>
+                    ))}
+                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((p) => (
+                      <React.Fragment key={p}>
+                        <rect x="932" y={440 + p * 14} width="14" height="8" rx="1" />
+                        <rect x="1114" y={440 + p * 14} width="14" height="8" rx="1" />
+                      </React.Fragment>
+                    ))}
+                  </g>
+                  {/* Central Thermal Pad Matrix (visible in image) */}
+                  <g fill="#d4af37" opacity="0.9">
+                    {[0, 1, 2, 3].map((r) =>
+                      [0, 1, 2, 3].map((c) => (
+                        <circle key={`${r}-${c}`} cx={995 + c * 22} cy={500 + r * 20} r="5" />
+                      ))
+                    )}
+                  </g>
+                  <rect x="965" y="475" width="130" height="110" rx="4" fill="#ffffff" stroke="#000000" strokeWidth="1.5" />
+                  <text x="1030" y="525" fill="#000000" fontSize="16" fontWeight="900" textAnchor="middle" fontFamily="monospace">QUECTEL</text>
+                  <text x="1030" y="550" fill="#000000" fontSize="14" fontWeight="900" textAnchor="middle" fontFamily="monospace">BG95-M3</text>
+                  <text x="1030" y="570" fill="#000000" fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="monospace">LTE-M / NB-IoT</text>
+                </g>
+
+                {/* U4: SX1276 LoRa Transceiver */}
+                <g
+                  className="cursor-pointer transition-all hover:opacity-80"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'sx1276-lora')!)}
+                >
+                  <rect
+                    x="1050"
+                    y="210"
+                    width="150"
+                    height="150"
+                    rx="6"
+                    fill={selectedComp.id === 'sx1276-lora' ? '#a7f3d0' : '#f8fafc'}
+                    stroke={selectedComp.id === 'sx1276-lora' ? '#059669' : '#000000'}
+                    strokeWidth={selectedComp.id === 'sx1276-lora' ? '4' : '2'}
+                  />
+                  {/* Gold pads */}
+                  <g fill="#d4af37">
+                    {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                      <React.Fragment key={i}>
+                        <rect x="1040" y={225 + i * 18} width="16" height="10" rx="2" />
+                        <rect x="1194" y={225 + i * 18} width="16" height="10" rx="2" />
+                      </React.Fragment>
+                    ))}
+                  </g>
+                  {/* ANT Text & Pad */}
+                  <rect x="1185" y="215" width="20" height="20" fill="#d4af37" />
+                  <text x="1175" y="230" fill="#000000" fontSize="11" fontWeight="900" textAnchor="end">ANT</text>
+                  <rect x="1080" y="240" width="85" height="90" rx="4" fill="#ffffff" stroke="#000000" strokeWidth="1.5" />
+                  <text x="1125" y="280" fill="#000000" fontSize="16" fontWeight="900" textAnchor="middle" fontFamily="monospace">SX1276</text>
+                  <text x="1125" y="305" fill="#000000" fontSize="12" fontWeight="bold" textAnchor="middle" fontFamily="monospace">865MHz LoRa</text>
+                </g>
+
+                {/* RF1: LoRa Antenna SMA */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'rf1-connector')!)}
+                >
+                  <rect x="1170" y="35" width="70" height="70" rx="4" fill="#f8fafc" stroke="#d4af37" strokeWidth="2.5" />
+                  <circle cx="1205" cy="70" r="22" fill="#d4af37" />
+                  <circle cx="1205" cy="70" r="10" fill="#020617" />
+                  <circle cx="1205" cy="70" r="4" fill="#eab308" />
+                  <text x="1155" y="75" fill="#000000" fontSize="12" fontWeight="900" textAnchor="end">RF1</text>
+                </g>
+
+                {/* RF2: Cellular Antenna SMA */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'rf2-connector')!)}
+                >
+                  <rect x="685" y="665" width="70" height="70" rx="4" fill="#f8fafc" stroke="#d4af37" strokeWidth="2.5" />
+                  <circle cx="720" cy="700" r="22" fill="#d4af37" />
+                  <circle cx="720" cy="700" r="10" fill="#020617" />
+                  <circle cx="720" cy="700" r="4" fill="#eab308" />
+                  <text x="720" y="655" fill="#000000" fontSize="12" fontWeight="900" textAnchor="middle">RF2</text>
+                </g>
+
+                {/* RF3: Auxiliary/GNSS Antenna SMA */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'rf3-connector')!)}
+                >
+                  <rect x="1245" y="580" width="70" height="70" rx="4" fill="#f8fafc" stroke="#d4af37" strokeWidth="2.5" />
+                  <circle cx="1280" cy="615" r="22" fill="#d4af37" />
+                  <circle cx="1280" cy="615" r="10" fill="#020617" />
+                  <circle cx="1280" cy="615" r="4" fill="#eab308" />
+                  <text x="1330" y="620" fill="#000000" fontSize="12" fontWeight="900">RF3</text>
+                </g>
+
+                {/* SIM1: Micro-SIM Socket */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'sim-socket')!)}
+                >
+                  <rect x="1145" y="470" width="140" height="150" rx="4" fill="#f8fafc" stroke="#f43f5e" strokeWidth="2" />
+                  <path d="M 1150 475 L 1265 475 L 1280 490 L 1280 615 L 1150 615 Z" fill="#e2e8f0" stroke="#000000" />
+                  <text x="1215" y="550" fill="#000000" fontSize="14" fontWeight="900" textAnchor="middle">SIM1</text>
+                  <g fill="#d4af37">
+                    <rect x="1155" y="460" width="12" height="14" rx="1" />
+                    <rect x="1185" y="460" width="12" height="14" rx="1" />
+                    <rect x="1215" y="460" width="12" height="14" rx="1" />
+                    <rect x="1245" y="460" width="12" height="14" rx="1" />
+                  </g>
+                </g>
+
+                {/* USB-C Receptacle */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'usb-c-receptacle')!)}
+                >
+                  <rect x="20" y="160" width="70" height="100" rx="8" fill="#e2e8f0" stroke="#000000" strokeWidth="2" />
+                  <rect x="15" y="185" width="20" height="50" rx="3" fill="#000000" />
+                  <text x="50" y="215" fill="#000000" fontSize="12" fontWeight="900" transform="rotate(-90 50 215)" textAnchor="middle">USB-C</text>
+                </g>
+
+                {/* U9: CH340K USB to UART Bridge */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'ch340k-bridge')!)}
+                >
+                  <rect x="290" y="200" width="90" height="80" rx="3" fill="#f8fafc" stroke="#000000" strokeWidth="2" />
+                  <text x="335" y="245" fill="#000000" fontSize="14" fontWeight="900" textAnchor="middle">CH340K</text>
+                  <text x="335" y="265" fill="#000000" fontSize="11" fontWeight="bold" textAnchor="middle">U9</text>
+                  <g fill="#d4af37">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <React.Fragment key={i}>
+                        <rect x="278" y={208 + i * 14} width="14" height="6" rx="1" />
+                        <rect x="378" y={208 + i * 14} width="14" height="6" rx="1" />
+                      </React.Fragment>
+                    ))}
+                  </g>
+                </g>
+
+                {/* Q1, Q2: S8050 Auto-Reset Transistors */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'autoreset-circuit')!)}
+                >
+                  <rect x="680" y="150" width="40" height="30" rx="2" fill="#ffffff" stroke="#000000" strokeWidth="1.5" />
+                  <text x="700" y="142" fill="#000000" fontSize="11" fontWeight="bold" textAnchor="middle">Q1</text>
+                  <rect x="1100" y="160" width="40" height="30" rx="2" fill="#ffffff" stroke="#000000" strokeWidth="1.5" />
+                  <text x="1120" y="152" fill="#000000" fontSize="11" fontWeight="bold" textAnchor="middle">Q2</text>
+                </g>
+
+                {/* SW1: Reset Button */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'sw1-switch')!)}
+                >
+                  <rect x="660" y="200" width="45" height="50" rx="4" fill="#ffffff" stroke="#f43f5e" strokeWidth="2" />
+                  <circle cx="682" cy="225" r="14" fill="#e11d48" />
+                  <text x="635" y="230" fill="#000000" fontSize="13" fontWeight="900">SW1</text>
+                </g>
+
+                {/* SW2: Boot Button */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'sw2-switch')!)}
+                >
+                  <rect x="990" y="130" width="45" height="50" rx="4" fill="#ffffff" stroke="#f59e0b" strokeWidth="2" />
+                  <circle cx="1012" cy="155" r="14" fill="#d97706" />
+                  <text x="965" y="160" fill="#000000" fontSize="13" fontWeight="900">SW2</text>
+                </g>
+
+                {/* P1: 2-Pin Battery Terminal (18650) with large through holes */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'p1-battery-conn')!)}
+                >
+                  <rect x="180" y="530" width="160" height="150" rx="8" fill="#ffffff" stroke="#000000" strokeWidth="3" />
+                  <circle cx="230" cy="605" r="22" fill="#f8fafc" stroke="#d4af37" strokeWidth="5" />
+                  <circle cx="290" cy="605" r="22" fill="#f8fafc" stroke="#d4af37" strokeWidth="5" />
+                  <text x="260" y="560" fill="#000000" fontSize="18" fontWeight="900" textAnchor="middle">P1 (BATTERY)</text>
+                  <text x="230" y="660" fill="#000000" fontSize="20" fontWeight="900" textAnchor="middle">+</text>
+                  <text x="290" y="660" fill="#000000" fontSize="24" fontWeight="900" textAnchor="middle">-</text>
+                </g>
+
+                {/* C_BULK: 3300uF Capacitor */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'bulk-cap')!)}
+                >
+                  <circle cx="850" cy="620" r="45" fill="#bfdbfe" stroke="#000000" strokeWidth="3" />
+                  <rect x="805" y="605" width="20" height="30" fill="#ffffff" stroke="#000000" />
+                  <text x="850" y="625" fill="#000000" fontSize="14" fontWeight="900" textAnchor="middle">3300µF</text>
+                  <text x="850" y="685" fill="#000000" fontSize="12" fontWeight="bold" textAnchor="middle">LOW-ESR</text>
+                </g>
+
+                {/* U3: CN3065 Charger IC */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'cn3065-charger')!)}
+                >
+                  <rect x="360" y="390" width="60" height="60" rx="3" fill="#ffffff" stroke="#eab308" strokeWidth="2" />
+                  <text x="390" y="425" fill="#000000" fontSize="12" fontWeight="900" textAnchor="middle">CN3065</text>
+                  <g fill="#d4af37">
+                    {[0, 1, 2, 3].map((i) => (
+                      <React.Fragment key={i}>
+                        <rect x="352" y={397 + i * 14} width="10" height="5" />
+                        <rect x="418" y={397 + i * 14} width="10" height="5" />
+                      </React.Fragment>
+                    ))}
+                  </g>
+                </g>
+
+                {/* U8: DW01A + FS8205A Battery Protection */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'dw01a-protection')!)}
+                >
+                  <rect x="120" y="570" width="45" height="50" rx="3" fill="#ffffff" stroke="#ef4444" strokeWidth="2" />
+                  <text x="142" y="600" fill="#000000" fontSize="11" fontWeight="900" textAnchor="middle">DW01A</text>
+                </g>
+
+                {/* D1: 1N5819 Schottky Diode */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'd1-schottky')!)}
+                >
+                  <rect x="380" y="550" width="70" height="35" rx="3" fill="#ffffff" stroke="#fb923c" strokeWidth="2" />
+                  <rect x="390" y="552" width="8" height="31" fill="#000000" />
+                  <text x="425" y="572" fill="#000000" fontSize="12" fontWeight="900">D1</text>
+                </g>
+
+                {/* U2: AMS1117-3.3 Regulator */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'ams1117-ldo')!)}
+                >
+                  <rect x="1000" y="45" width="80" height="60" rx="3" fill="#ffffff" stroke="#10b981" strokeWidth="2" />
+                  <rect x="1020" y="37" width="40" height="12" fill="#d4af37" />
+                  <text x="1040" y="80" fill="#000000" fontSize="12" fontWeight="900" textAnchor="middle">AMS1117</text>
+                </g>
+
+                {/* J1: 4-Pin I2C Sensor Port */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'j1-sensor-port')!)}
+                >
+                  <rect x="235" y="275" width="40" height="140" rx="6" fill="#ffffff" stroke="#000000" strokeWidth="2.5" />
+                  <text x="210" y="340" fill="#000000" fontSize="15" fontWeight="900">J1</text>
+                  {[0, 1, 2, 3].map((i) => (
+                    <circle key={i} cx="255" cy={300 + i * 30} r="10" fill="#f8fafc" stroke="#d4af37" strokeWidth="4" />
+                  ))}
+                  <text x="255" y="265" fill="#000000" fontSize="11" fontWeight="bold" textAnchor="middle">I2C BUS</text>
+                </g>
+
+                {/* Status LEDs (LED1, LED2, LED3) */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'status-leds')!)}
+                >
+                  <rect x="1060" y="160" width="22" height="12" rx="2" fill="#10b981" stroke="#d4af37" />
+                  <text x="1071" y="152" fill="#000000" fontSize="10" fontWeight="bold" textAnchor="middle">LED1</text>
+                  <rect x="490" y="400" width="22" height="12" rx="2" fill="#38bdf8" stroke="#d4af37" />
+                  <text x="501" y="392" fill="#000000" fontSize="10" fontWeight="bold" textAnchor="middle">LED2</text>
+                  <rect x="245" y="240" width="22" height="12" rx="2" fill="#ef4444" stroke="#d4af37" />
+                  <text x="256" y="232" fill="#000000" fontSize="10" fontWeight="bold" textAnchor="middle">LED3</text>
+                </g>
+
+                {/* BUZZER1: Piezo Siren */}
+                <g
+                  className="cursor-pointer"
+                  onClick={() => setSelectedComp(ROOT_NODE_COMPONENTS.find((c) => c.id === 'buzzer-siren')!)}
+                >
+                  <circle cx="100" cy="460" r="40" fill="#ffffff" stroke="#ec4899" strokeWidth="2.5" />
+                  <circle cx="100" cy="460" r="10" fill="#020617" />
+                  <text x="100" y="520" fill="#000000" fontSize="13" fontWeight="900" textAnchor="middle">BUZZER1</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+        </BorderGlow>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 4. TAB 3: SYSTEM ARCHITECTURE & DATA PATH                                 */}
+      {/* ========================================================================= */}
+      {activeTabMode === 'datapath' && (
         <div className="space-y-6">
           <BorderGlow
             edgeSensitivity={30}
             glowColor="40 80 80"
-            backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+            backgroundColor="#ffffff"
             borderRadius={24}
             glowRadius={40}
             glowIntensity={1.0}
             coneSpread={25}
             animated={false}
-            colors={['#c084fc', '#f472b6', '#38bdf8']}
+            colors={['#06b6d4', '#10b981', '#3b82f6']}
             className="w-full"
           >
-            <div
-              className={`rounded-2xl border p-6 transition-all ${
-                isDarkMode
-                  ? 'bg-slate-900/80 border-slate-800 text-white'
-                  : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-4 border-b border-current/10 pb-3">
-                <div>
-                  <h2 className="text-base font-bold flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-cyan-400" />
-                    <span>Reference PCB Engineering Design & Footprints</span>
-                  </h2>
-                  <p className="text-xs opacity-70 mt-0.5">
-                    Original KiCad 10 / OpenCASCADE 3D render outputs demonstrating footprint alignment and surface mount assembly.
+            <div className="rounded-2xl border p-6 transition-all bg-white border-slate-200 text-black shadow-sm">
+              <h2 className="text-lg font-black flex items-center gap-2 mb-2 text-black">
+                <GitBranch className="w-5 h-5 text-black" />
+                <span>End-to-End Field Telemetry & Power Architecture</span>
+              </h2>
+              <p className="text-xs text-black font-semibold mb-6">
+                How the Root Node Gateway captures, processes, protects, and routes real-time sensor streams from river banks to emergency operators.
+              </p>
+
+              {/* Data Pipeline Steps */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-300 relative shadow-2xs">
+                  <div className="absolute top-2 right-2 text-xs font-mono font-black text-black">STAGE 01</div>
+                  <div className="w-10 h-10 rounded-lg bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-800 mb-3">
+                    <Radio className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-black text-sm text-black mb-1">LoRa Mesh Ingestion</h3>
+                  <p className="text-xs text-black font-medium leading-relaxed mb-3">
+                    Distributed leaf nodes transmit encrypted hydro-sensor packets via Semtech <strong>SX1276</strong> on 865 MHz.
                   </p>
+                  <div className="text-[11px] font-mono text-black font-bold bg-emerald-50 border border-emerald-200 px-2 py-1 rounded">
+                    Input: RF1 (SMA) ➔ SPI @ 3.3V
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-300 relative shadow-2xs">
+                  <div className="absolute top-2 right-2 text-xs font-mono font-black text-black">STAGE 02</div>
+                  <div className="w-10 h-10 rounded-lg bg-cyan-100 border border-cyan-300 flex items-center justify-center text-cyan-800 mb-3">
+                    <Cpu className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-black text-sm text-black mb-1">ESP32-S3 Edge AI</h3>
+                  <p className="text-xs text-black font-medium leading-relaxed mb-3">
+                    Dual-core Xtensa MCU decodes telemetry, validates checksums, and executes on-device flood threshold machine learning.
+                  </p>
+                  <div className="text-[11px] font-mono text-black font-bold bg-cyan-50 border border-cyan-200 px-2 py-1 rounded">
+                    Core: 240MHz • 8MB Flash • TinyML
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-300 relative shadow-2xs">
+                  <div className="absolute top-2 right-2 text-xs font-mono font-black text-black">STAGE 03</div>
+                  <div className="w-10 h-10 rounded-lg bg-indigo-100 border border-indigo-300 flex items-center justify-center text-indigo-800 mb-3">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-black text-sm text-black mb-1">Signal Isolation & Level Shift</h3>
+                  <p className="text-xs text-black font-medium leading-relaxed mb-3">
+                    <strong>TXS0102</strong> converts MCU 3.3V UART signals down to 1.8V for safe high-speed communication with the cellular modem.
+                  </p>
+                  <div className="text-[11px] font-mono text-black font-bold bg-indigo-50 border border-indigo-200 px-2 py-1 rounded">
+                    Bus: UART 1.8V ⬌ 3.3V Dual-Rail
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-300 relative shadow-2xs">
+                  <div className="absolute top-2 right-2 text-xs font-mono font-black text-black">STAGE 04</div>
+                  <div className="w-10 h-10 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 mb-3">
+                    <Wifi className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-black text-sm text-black mb-1">NB-IoT Cloud Uplink</h3>
+                  <p className="text-xs text-black font-medium leading-relaxed mb-3">
+                    Quectel <strong>BG95-M3</strong> powers up with a 3300µF surge reservoir, dispatching telemetry packets via MQTT/HTTPS over SIM1.
+                  </p>
+                  <div className="text-[11px] font-mono text-black font-bold bg-amber-50 border border-amber-200 px-2 py-1 rounded">
+                    Output: RF2 (SMA) ➔ Cloud Dashboard
+                  </div>
                 </div>
               </div>
 
-              {/* Two Column Grid displaying User's Uploaded Reference Views */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* View 1: Top-down Footprint & Silkscreen Layout */}
-                <div
-                  className={`rounded-xl border overflow-hidden ${
-                    isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
-                  }`}
-                >
-                  <div className="px-4 py-2.5 border-b border-current/10 flex items-center justify-between text-xs font-mono">
-                    <span className="font-bold flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
-                      <span>Top Layer Solder Mask & Silkscreen (ENIG)</span>
-                    </span>
-                    <span className="opacity-60 text-[10px]">Top-Down Orthographic</span>
-                  </div>
-                  <div className="p-4 bg-slate-950 flex items-center justify-center min-h-[340px]">
-                    <div className="relative group max-w-full">
-                      {/* SVG Canvas Reconstruction of the User's uploaded Image 1 */}
-                      <svg
-                        viewBox="0 0 880 480"
-                        className="w-full h-auto rounded-lg shadow-2xl border border-emerald-950/60"
-                        style={{ background: '#0e3321' }}
-                      >
-                        {/* Board perimeter */}
-                        <rect x="15" y="15" width="850" height="450" rx="12" fill="#0b281a" stroke="#165b3b" strokeWidth="3" />
-
-                        {/* Copper Traces (green lines) */}
-                        <path d="M 120 180 L 190 280 L 260 280 L 320 220" stroke="#1c6b45" strokeWidth="2.5" fill="none" />
-                        <path d="M 280 180 L 390 180 L 460 210" stroke="#1c6b45" strokeWidth="2.5" fill="none" />
-                        <path d="M 520 200 L 610 200 L 640 180" stroke="#1c6b45" strokeWidth="2.5" fill="none" />
-                        <path d="M 520 250 L 590 320 L 740 320" stroke="#1c6b45" strokeWidth="2.5" fill="none" />
-                        <path d="M 720 370 L 780 370" stroke="#1c6b45" strokeWidth="3.5" fill="none" />
-                        <path d="M 780 90 L 830 90 L 830 180" stroke="#1c6b45" strokeWidth="2.5" fill="none" />
-
-                        {/* U1 Flash */}
-                        <rect x="70" y="80" width="100" height="120" rx="4" fill="none" stroke="#ffffff" strokeWidth="2" strokeDasharray="3 3" />
-                        <text x="120" y="145" fill="#ffffff" fontSize="14" textAnchor="middle" fontWeight="bold">U1</text>
-                        {/* Gold Pads for U1 */}
-                        {[-45, -30, -15, 0, 15, 30, 45].map((off, i) => (
-                          <g key={i}>
-                            <rect x="60" y={140 + off} width="16" height="8" rx="2" fill="#e5b842" />
-                            <rect x="164" y={140 + off} width="16" height="8" rx="2" fill="#e5b842" />
-                          </g>
-                        ))}
-
-                        {/* U9 MCU */}
-                        <rect x="250" y="70" width="130" height="130" rx="6" fill="none" stroke="#ffffff" strokeWidth="2" />
-                        <text x="315" y="60" fill="#ffffff" fontSize="14" textAnchor="middle" fontWeight="bold">U9</text>
-                        {/* Thermal Pad */}
-                        <rect x="285" y="105" width="60" height="60" rx="2" fill="#e5b842" opacity="0.9" />
-                        {/* Pins on 4 sides */}
-                        {[-40, -20, 0, 20, 40].map((off, i) => (
-                          <g key={i}>
-                            <rect x={315 + off - 6} y="55" width="12" height="14" rx="2" fill="#e5b842" />
-                            <rect x={315 + off - 6} y="201" width="12" height="14" rx="2" fill="#e5b842" />
-                            <rect x="235" y={135 + off - 6} width="14" height="12" rx="2" fill="#e5b842" />
-                            <rect x="381" y={135 + off - 6} width="14" height="12" rx="2" fill="#e5b842" />
-                          </g>
-                        ))}
-
-                        {/* U5 LoRa Module */}
-                        <rect x="450" y="75" width="120" height="120" rx="4" fill="none" stroke="#ffffff" strokeWidth="2" />
-                        <text x="510" y="60" fill="#ffffff" fontSize="14" textAnchor="middle" fontWeight="bold">U5</text>
-                        <text x="470" y="95" fill="#ffffff" fontSize="10" fontWeight="bold">ANT</text>
-                        <rect x="470" y="100" width="80" height="80" fill="none" stroke="#e5b842" strokeWidth="2.5" />
-                        {[-40, -15, 15, 40].map((off, i) => (
-                          <g key={i}>
-                            <rect x="435" y={135 + off - 7} width="14" height="14" rx="2" fill="#e5b842" />
-                            <rect x="571" y={135 + off - 7} width="14" height="14" rx="2" fill="#e5b842" />
-                          </g>
-                        ))}
-
-                        {/* U6 Sensor */}
-                        <rect x="620" y="80" width="60" height="60" rx="4" fill="none" stroke="#ffffff" strokeWidth="2" />
-                        <text x="650" y="65" fill="#ffffff" fontSize="12" textAnchor="middle" fontWeight="bold">U6</text>
-                        <circle cx="635" cy="95" r="5" fill="#e5b842" />
-                        <circle cx="650" cy="95" r="5" fill="#e5b842" />
-                        <circle cx="665" cy="95" r="5" fill="#e5b842" />
-                        <circle cx="635" cy="125" r="5" fill="#e5b842" />
-                        <circle cx="650" cy="125" r="5" fill="#e5b842" />
-                        <circle cx="665" cy="125" r="5" fill="#e5b842" />
-
-                        {/* USB-C1 on top right */}
-                        <rect x="780" y="55" width="65" height="75" rx="6" fill="none" stroke="#ffffff" strokeWidth="2" />
-                        <text x="850" y="100" fill="#ffffff" fontSize="11" transform="rotate(90 850 100)" fontWeight="bold">USB-C1</text>
-                        <rect x="790" y="115" width="45" height="10" rx="2" fill="#e5b842" />
-
-                        {/* Q1 Crystal */}
-                        <rect x="450" y="240" width="55" height="35" rx="3" fill="none" stroke="#ffffff" strokeWidth="1.5" />
-                        <text x="477" y="235" fill="#ffffff" fontSize="11" textAnchor="middle" fontWeight="bold">Q1</text>
-                        <rect x="445" y="247" width="10" height="20" rx="2" fill="#e5b842" />
-                        <rect x="495" y="247" width="10" height="20" rx="2" fill="#e5b842" />
-
-                        {/* D1 Diode */}
-                        <rect x="635" y="230" width="45" height="25" rx="2" fill="none" stroke="#ffffff" strokeWidth="1.5" />
-                        <text x="657" y="222" fill="#ffffff" fontSize="11" textAnchor="middle" fontWeight="bold">D1</text>
-                        <rect x="630" y="234" width="8" height="17" fill="#e5b842" />
-                        <rect x="672" y="234" width="8" height="17" fill="#e5b842" />
-                        <line x1="640" y1="230" x2="640" y2="255" stroke="#ffffff" strokeWidth="2" />
-
-                        {/* LDO1 */}
-                        <text x="760" y="160" fill="#ffffff" fontSize="11" fontWeight="bold">LDO1</text>
-                        <rect x="750" y="170" width="30" height="25" rx="2" fill="#18181b" stroke="#e5b842" />
-
-                        {/* Tactile Buttons SW1 & SW2 */}
-                        <rect x="35" y="250" width="45" height="35" rx="3" fill="none" stroke="#ffffff" strokeWidth="2" />
-                        <text x="57" y="240" fill="#ffffff" fontSize="11" textAnchor="middle" fontWeight="bold">SW2</text>
-                        <rect x="345" y="275" width="45" height="35" rx="3" fill="none" stroke="#ffffff" strokeWidth="2" />
-                        <text x="367" y="265" fill="#ffffff" fontSize="11" textAnchor="middle" fontWeight="bold">SW1</text>
-
-                        {/* J1 4-Pin Header (Left) */}
-                        <rect x="50" y="315" width="30" height="100" rx="4" fill="none" stroke="#ffffff" strokeWidth="2" />
-                        <circle cx="65" cy="335" r="7" fill="none" stroke="#e5b842" strokeWidth="3" />
-                        <circle cx="65" cy="360" r="7" fill="none" stroke="#e5b842" strokeWidth="3" />
-                        <circle cx="65" cy="385" r="7" fill="none" stroke="#e5b842" strokeWidth="3" />
-                        <circle cx="65" cy="410" r="7" fill="none" stroke="#e5b842" strokeWidth="3" />
-                        <text x="40" y="370" fill="#ffffff" fontSize="12" fontWeight="bold">J1</text>
-
-                        {/* J2 6-Pin Sensor Terminal Header (Bottom) */}
-                        <rect x="195" y="380" width="200" height="60" rx="6" fill="none" stroke="#ffffff" strokeWidth="2.5" />
-                        <text x="295" y="460" fill="#ffffff" fontSize="13" textAnchor="middle" fontWeight="bold">J2 (Environmental Probes)</text>
-                        {[0, 1, 2, 3, 4, 5].map((i) => (
-                          <circle key={i} cx={225 + i * 28} cy={410} r="8" fill="#0b281a" stroke="#e5b842" strokeWidth="4" />
-                        ))}
-
-                        {/* J3 Power Terminals */}
-                        <rect x="760" y="325" width="55" height="65" rx="4" fill="none" stroke="#ffffff" strokeWidth="2" />
-                        <circle cx="787" cy="345" r="8" fill="#0b281a" stroke="#e5b842" strokeWidth="3.5" />
-                        <rect x="770" y="365" width="35" height="20" fill="none" stroke="#ffffff" strokeWidth="1" />
-                        <line x1="775" y1="375" x2="800" y2="375" stroke="#ffffff" strokeWidth="1.5" />
-                        <line x1="777" y1="370" x2="797" y2="380" stroke="#ffffff" strokeWidth="1" />
-
-                        {/* BUZZER1 */}
-                        <rect x="760" y="405" width="70" height="50" rx="4" fill="none" stroke="#ffffff" strokeWidth="2" />
-                        <rect x="765" y="415" width="18" height="18" rx="2" fill="#e5b842" />
-                        <rect x="805" y="415" width="18" height="18" rx="2" fill="#e5b842" />
-                        <text x="845" y="435" fill="#ffffff" fontSize="11" transform="rotate(90 845 435)" fontWeight="bold">BUZZER1</text>
-                        <text x="774" y="448" fill="#ffffff" fontSize="14" fontWeight="bold">+</text>
-                        <text x="812" y="446" fill="#ffffff" fontSize="14" fontWeight="bold">-</text>
-
-                        {/* LEDs */}
-                        <text x="705" y="215" fill="#ffffff" fontSize="10" fontWeight="bold">LED1</text>
-                        <rect x="698" y="225" width="22" height="12" rx="2" fill="#10b981" stroke="#e5b842" />
-                        <text x="745" y="245" fill="#ffffff" fontSize="10" fontWeight="bold">LED2</text>
-                        <rect x="738" y="255" width="22" height="12" rx="2" fill="#00e5ff" stroke="#e5b842" />
-                        <text x="775" y="180" fill="#ffffff" fontSize="10" fontWeight="bold">LED3</text>
-                      </svg>
+              {/* Subsystem Architecture Grid */}
+              <h3 className="text-sm font-black uppercase tracking-wider text-black mb-3">
+                Functional Subsystem Directory
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {ROOT_SYSTEM_BLOCKS.map((block) => (
+                  <div
+                    key={block.title}
+                    className="p-4 rounded-xl border border-slate-300 bg-slate-50 shadow-2xs text-black"
+                  >
+                    <div className="font-black text-sm text-black mb-0.5">{block.title}</div>
+                    <div className="text-[11px] font-mono font-bold text-black opacity-80 mb-2">{block.subtitle}</div>
+                    <p className="text-xs text-black font-medium leading-relaxed mb-3">{block.purpose}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {block.components.map((comp) => (
+                        <span
+                          key={comp}
+                          className="text-[10px] font-mono px-2 py-0.5 bg-white rounded border border-slate-300 text-black font-bold"
+                        >
+                          {comp}
+                        </span>
+                      ))}
                     </div>
                   </div>
-                </div>
-
-                {/* View 2: Isometric 3D Assembly Preview */}
-                <div
-                  className={`rounded-xl border overflow-hidden ${
-                    isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
-                  }`}
-                >
-                  <div className="px-4 py-2.5 border-b border-current/10 flex items-center justify-between text-xs font-mono">
-                    <span className="font-bold flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block" />
-                      <span>3D SMT Component Placement (Populated View)</span>
-                    </span>
-                    <span className="opacity-60 text-[10px]">35° Angled Perspective</span>
-                  </div>
-                  <div className="p-6 bg-slate-950 flex flex-col items-center justify-center min-h-[340px] text-center">
-                    <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/60 max-w-md w-full text-left space-y-3">
-                      <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm">
-                        <Microchip className="w-4 h-4" />
-                        <span>SMD Component Assembly Details</span>
-                      </div>
-                      <p className="text-xs opacity-75 leading-relaxed">
-                        The board uses a single-sided surface-mount assembly process to maximize manufacturing yield and reduce thermal distortion during reflow.
-                      </p>
-                      <div className="space-y-1.5 font-mono text-[11px] opacity-90">
-                        <div className="flex justify-between border-b border-slate-800 pb-1">
-                          <span className="opacity-60">Board Dimensions:</span>
-                          <span className="font-bold">110.0 x 60.0 x 1.6 mm</span>
-                        </div>
-                        <div className="flex justify-between border-b border-slate-800 pb-1">
-                          <span className="opacity-60">Min Trace / Space:</span>
-                          <span className="font-bold">0.15mm (6 mil) / 0.15mm</span>
-                        </div>
-                        <div className="flex justify-between border-b border-slate-800 pb-1">
-                          <span className="opacity-60">Min Via Drill:</span>
-                          <span className="font-bold">0.3 mm / 0.6 mm Annular Ring</span>
-                        </div>
-                        <div className="flex justify-between border-b border-slate-800 pb-1">
-                          <span className="opacity-60">Conformal Coating:</span>
-                          <span className="font-bold text-emerald-400">Silicone IP67 Spray</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="opacity-60">Operating Temp:</span>
-                          <span className="font-bold text-amber-400">-40°C to +85°C Industrial</span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setActiveTabMode('3d')}
-                        className="w-full py-2 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer mt-2"
-                      >
-                        <Maximize2 className="w-3.5 h-3.5" />
-                        <span>Switch to Interactive 3D Model</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </BorderGlow>
@@ -1788,112 +1814,117 @@ export const PCBView: React.FC<PCBViewProps> = ({ location }) => {
       )}
 
       {/* ========================================================================= */}
-      {/* 4. BILL OF MATERIALS (BOM) & NETLIST SPECIFICATIONS TAB                   */}
+      {/* 5. TAB 4: BILL OF MATERIALS (BOM) & SPECIFICATIONS                        */}
       {/* ========================================================================= */}
       {activeTabMode === 'specs' && (
         <BorderGlow
           edgeSensitivity={30}
           glowColor="40 80 80"
-          backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+          backgroundColor="#ffffff"
           borderRadius={24}
           glowRadius={40}
           glowIntensity={1.0}
           coneSpread={25}
           animated={false}
-          colors={['#c084fc', '#f472b6', '#38bdf8']}
+          colors={['#06b6d4', '#10b981', '#3b82f6']}
           className="w-full"
         >
-          <div
-            className={`rounded-2xl border p-6 transition-all ${
-              isDarkMode
-                ? 'bg-slate-900/80 border-slate-800 text-white'
-                : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-4 border-b border-current/10 pb-3">
+          <div className="rounded-2xl border p-6 transition-all bg-white border-slate-200 text-black shadow-sm">
+            {/* Filter and Search Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200">
               <div>
-                <h2 className="text-base font-bold flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-cyan-400" />
-                  <span>Hardware Bill of Materials (BOM) & Component Index</span>
+                <h2 className="text-base font-black flex items-center gap-2 text-black">
+                  <Sliders className="w-4 h-4 text-black" />
+                  <span>Root Node Bill of Materials (BOM)</span>
                 </h2>
-                <p className="text-xs opacity-70 mt-0.5">
-                  Complete component ledger with manufacturer parts, footprint packages, and functional subsystem assignments.
+                <p className="text-xs text-black font-semibold mt-0.5">
+                  Complete component ledger for the 137.5 × 77.5 mm gateway hardware.
                 </p>
               </div>
-              <span className="text-xs font-mono opacity-60 font-semibold">
-                Total Parts: 16 Line Items
-              </span>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-black" />
+                  <input
+                    type="text"
+                    placeholder="Search part, net, package..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs text-black placeholder-slate-500 font-bold focus:outline-none focus:border-black"
+                  />
+                </div>
+
+                {/* Category Pills */}
+                <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-300 text-xs">
+                  {(['all', 'mcu', 'rf', 'power', 'connector', 'indicator', 'passive'] as const).map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setBomFilter(cat)}
+                      className={`px-2.5 py-1 rounded capitalize font-bold transition-colors cursor-pointer ${
+                        bomFilter === cat
+                          ? 'bg-black text-white'
+                          : 'text-black hover:bg-slate-200'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
+            {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-mono">
-                <thead
-                  className={`border-b font-semibold uppercase text-[10px] ${
-                    isDarkMode ? 'bg-slate-950/80 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'
-                  }`}
-                >
+              <table className="w-full text-left text-xs font-mono text-black">
+                <thead className="border-b border-slate-300 font-black uppercase text-[10px] bg-slate-100 text-black">
                   <tr>
-                    <th className="px-4 py-2.5">Designator</th>
-                    <th className="px-4 py-2.5">Part / Description</th>
-                    <th className="px-4 py-2.5">Category</th>
-                    <th className="px-4 py-2.5">Package</th>
-                    <th className="px-4 py-2.5">Key Characteristic</th>
-                    <th className="px-4 py-2.5 text-right">Action</th>
+                    <th className="px-4 py-3 text-black">Designator</th>
+                    <th className="px-4 py-3 text-black">Part Name</th>
+                    <th className="px-4 py-3 text-black">Category</th>
+                    <th className="px-4 py-3 text-black">Package / Footprint</th>
+                    <th className="px-4 py-3 text-black">Key Function</th>
+                    <th className="px-4 py-3 text-right text-black">3D Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-current/10">
-                  {PCB_COMPONENTS.map((item) => (
+                <tbody className="divide-y divide-slate-200">
+                  {filteredComponents.map((item) => (
                     <tr
                       key={item.id}
                       onClick={() => {
                         setSelectedComp(item);
                         setActiveTabMode('3d');
                       }}
-                      className={`cursor-pointer transition-colors ${
-                        isDarkMode ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50'
-                      }`}
+                      className="cursor-pointer transition-colors hover:bg-slate-100"
                     >
-                      <td className="px-4 py-3 font-bold text-cyan-400">
+                      <td className="px-4 py-3.5 font-black text-black">
                         {item.designator}
                       </td>
-                      <td className="px-4 py-3 font-sans font-medium text-slate-200">
+                      <td className="px-4 py-3.5 font-sans font-bold text-black">
                         {item.name}
                       </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`text-[10px] font-sans font-bold px-2 py-0.5 rounded-full border ${
-                            item.category === 'mcu'
-                              ? 'bg-purple-950/60 text-purple-300 border-purple-800'
-                              : item.category === 'rf'
-                              ? 'bg-sky-950/60 text-sky-300 border-sky-800'
-                              : item.category === 'sensor'
-                              ? 'bg-amber-950/60 text-amber-300 border-amber-800'
-                              : item.category === 'power'
-                              ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800'
-                              : 'bg-slate-800 text-slate-300 border-slate-700'
-                          }`}
-                        >
+                      <td className="px-4 py-3.5">
+                        <span className="text-[10px] font-sans font-black px-2 py-0.5 rounded-full border bg-slate-100 text-black border-slate-300">
                           {item.category.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-4 py-3 opacity-80">
+                      <td className="px-4 py-3.5 text-black font-semibold">
                         {item.package}
                       </td>
-                      <td className="px-4 py-3 opacity-70 font-sans truncate max-w-xs">
+                      <td className="px-4 py-3.5 text-black font-sans font-medium max-w-sm truncate">
                         {item.description}
                       </td>
-                      <td className="px-4 py-3 text-right font-sans">
+                      <td className="px-4 py-3.5 text-right font-sans">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedComp(item);
                             setActiveTabMode('3d');
                           }}
-                          className={`font-semibold text-xs ${
-                            isDarkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-teal-700 hover:text-teal-900'
-                          }`}
+                          className="px-2.5 py-1 rounded bg-black text-white text-xs font-bold inline-flex items-center gap-1 hover:bg-slate-800"
                         >
-                          View in 3D &rarr;
+                          <span>Locate</span>
+                          <span>&rarr;</span>
                         </button>
                       </td>
                     </tr>
