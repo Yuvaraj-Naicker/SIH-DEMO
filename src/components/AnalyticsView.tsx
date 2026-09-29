@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { LocationConfig } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import BorderGlow from './BorderGlow';
 
 interface AnalyticsViewProps {
   location: LocationConfig;
@@ -37,13 +38,25 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ location }) => {
   return (
     <div className="space-y-6 pb-12">
       {/* Analytics Header */}
-      <div
-        className={`rounded-xl border p-5 transition-all ${
-          isDarkMode
-            ? 'bg-slate-900/80 border-slate-800 text-white'
-            : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-        }`}
+      <BorderGlow
+        edgeSensitivity={30}
+        glowColor="40 80 80"
+        backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+        borderRadius={24}
+        glowRadius={40}
+        glowIntensity={1.0}
+        coneSpread={25}
+        animated={false}
+        colors={['#c084fc', '#f472b6', '#38bdf8']}
+        className="w-full"
       >
+        <div
+          className={`rounded-xl border p-5 transition-all ${
+            isDarkMode
+              ? 'bg-slate-900/80 border-slate-800 text-white'
+              : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+          }`}
+        >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -83,9 +96,22 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ location }) => {
           </div>
         </div>
       </div>
+    </BorderGlow>
 
-      {/* Primary Visual Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    {/* Primary Visual Charts Grid */}
+    <BorderGlow
+      edgeSensitivity={30}
+      glowColor="40 80 80"
+      backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+      borderRadius={24}
+      glowRadius={40}
+      glowIntensity={1.0}
+      coneSpread={25}
+      animated={false}
+      colors={['#c084fc', '#f472b6', '#38bdf8']}
+      className="w-full"
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 p-4">
         {/* Chart 1: Rainfall vs Baseline Precipitation */}
         <div
           className={`rounded-xl border p-5 transition-all ${
@@ -237,9 +263,22 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ location }) => {
           </div>
         </div>
       </div>
+    </BorderGlow>
 
-      {/* Network Performance & Composite Score Summary Strip */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    {/* Network Performance & Composite Score Summary Strip */}
+    <BorderGlow
+      edgeSensitivity={30}
+      glowColor="40 80 80"
+      backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+      borderRadius={24}
+      glowRadius={40}
+      glowIntensity={1.0}
+      coneSpread={25}
+      animated={false}
+      colors={['#c084fc', '#f472b6', '#38bdf8']}
+      className="w-full"
+    >
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
         <div
           className={`rounded-xl border p-4 transition-all ${
             isDarkMode
@@ -298,6 +337,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ location }) => {
           </p>
         </div>
       </div>
+    </BorderGlow>
     </div>
   );
 };

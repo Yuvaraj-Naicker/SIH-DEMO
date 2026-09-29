@@ -31,6 +31,7 @@ interface GeospatialLeafletMapProps {
   location: LocationConfig;
   onSelectNode: (node: SensorNode) => void;
   onSelectLocation?: (locationId: LocationId) => void;
+  onToggleNodeStatus?: (nodeId: string) => void;
   compact?: boolean;
 }
 
@@ -98,7 +99,7 @@ export function getZoneMeta(area: MonitoredArea): ZoneMeta {
 // ---------------------------------------------------------------------------
 // Hopping Method Configurations
 // ---------------------------------------------------------------------------
-export type HoppingMethodId = 'adaptive-mesh' | 'direct-star' | 'emergency-flood';
+export type HoppingMethodId = 'leaf-by-leaf' | 'direct-star' | 'adaptive-mesh' | 'emergency-flood';
 
 export interface HoppingMethodConfig {
   id: HoppingMethodId;
@@ -116,6 +117,34 @@ export interface HoppingMethodConfig {
 }
 
 export const HOPPING_METHODS: Record<HoppingMethodId, HoppingMethodConfig> = {
+  'leaf-by-leaf': {
+    id: 'leaf-by-leaf',
+    name: 'Leaf-by-Leaf Hopping (Leaf ➔ Nearby Leaf ➔ Root Hub)',
+    shortLabel: 'Leaf-by-Leaf Hopping',
+    protocol: 'LoRaWAN Sequential Mesh Relay (RFC 6550 Multi-Hop)',
+    frequency: '865.0 - 867.0 MHz (India IN865 Band)',
+    spreadingFactor: 'SF7 / 125 kHz (Inter-Node Multi-Hop)',
+    txPower: '14 dBm (25 mW EIRP Compliant)',
+    hopDescription: 'Selected Leaf ➔ Sequential Nearby Leaf Hops (~4km each) ➔ Root Hub ➔ Cloud Edge',
+    expectedLatencyMs: 420,
+    pdrPercent: 99.8,
+    sensitivityDbm: -131,
+    badgeTone: 'cyan',
+  },
+  'direct-star': {
+    id: 'direct-star',
+    name: 'Direct Star-Hop (Direct Leaf ➔ Root Hub)',
+    shortLabel: 'Direct Star-Hop',
+    protocol: 'LoRaWAN Class A Point-to-Point Uplink',
+    frequency: '865.2 MHz Fixed Carrier',
+    spreadingFactor: 'SF7 / 125 kHz Fast Single-Hop Uplink',
+    txPower: '14 dBm Standard Power',
+    hopDescription: 'Selected Leaf Node ➔ Direct Root Gateway Hub (~4km Single Hop ACK)',
+    expectedLatencyMs: 110,
+    pdrPercent: 98.6,
+    sensitivityDbm: -126,
+    badgeTone: 'emerald',
+  },
   'adaptive-mesh': {
     id: 'adaptive-mesh',
     name: 'Adaptive Multi-Hop Mesh (RPL / ETX)',
@@ -129,20 +158,6 @@ export const HOPPING_METHODS: Record<HoppingMethodId, HoppingMethodConfig> = {
     pdrPercent: 99.8,
     sensitivityDbm: -131,
     badgeTone: 'cyan',
-  },
-  'direct-star': {
-    id: 'direct-star',
-    name: 'Direct Star-Hop (Point-to-Point)',
-    shortLabel: 'Direct Star-Hop',
-    protocol: 'LoRaWAN Class A Point-to-Point Uplink',
-    frequency: '865.2 MHz Fixed Carrier',
-    spreadingFactor: 'SF7 / 125 kHz Fast Uplink',
-    txPower: '14 dBm Standard Power',
-    hopDescription: 'Leaf Node ➔ Direct Sector Gateway (Single Hop ACK)',
-    expectedLatencyMs: 110,
-    pdrPercent: 98.6,
-    sensitivityDbm: -126,
-    badgeTone: 'emerald',
   },
   'emergency-flood': {
     id: 'emergency-flood',
@@ -204,6 +219,7 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
   location,
   onSelectNode,
   onSelectLocation,
+  onToggleNodeStatus,
   compact = false,
 }) => {
   const { isDarkMode } = useTheme();
@@ -220,20 +236,74 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
   const [touchedZoneAreaId, setTouchedZoneAreaId] = useState<string | null>(null);
   const [selectedZoneFilter, setSelectedZoneFilter] = useState<'none' | 'all' | ZoneType>('none'); // Off by default: show on touch or filter selection
   const [selectedAreaForInspection, setSelectedAreaForInspection] = useState<MonitoredArea | null>(null);
+  const [activePopupNode, setActivePopupNode] = useState<SensorNode | null>(null);
   const [showHoppingPanel, setShowHoppingPanel] = useState<boolean>(false); // Only show when user touches leaf node or clicks simulator button
 
-  // Hopping Method Selection
-  const [activeHoppingMethodId, setActiveHoppingMethodId] = useState<HoppingMethodId>('adaptive-mesh');
+  // Hopping Method Selection: defaults to user-requested 'leaf-by-leaf'
+  const [activeHoppingMethodId, setActiveHoppingMethodId] = useState<HoppingMethodId>('leaf-by-leaf');
   const [showHoppingSpecModal, setShowHoppingSpecModal] = useState(false);
 
   // Map tile style: 'auto' (follows theme), 'streets' (OpenStreetMap), 'dark' (CartoDB Dark)
   const [mapStyleOverride, setMapStyleOverride] = useState<'auto' | 'streets' | 'dark'>('auto');
   const [selectedLeafNodeId, setSelectedLeafNodeId] = useState<string>('');
   const [transmissionStatus, setTransmissionStatus] = useState<string>(
-    'READY - Select Leaf Node and Hopping Method, then click Transmit to view live multi-hop propagation.'
+    'READY - Select Leaf Node and Hopping Method (Leaf-by-Leaf or Direct Star), then click Transmit to view live multi-hop propagation.'
   );
   const [isTransmitting, setIsTransmitting] = useState(false);
   const [currentHopStep, setCurrentHopStep] = useState<number>(0);
+
+  // Offline node simulation state (Set of node IDs currently offline)
+  const [offlineNodeIds, setOfflineNodeIds] = useState<Set<string>>(() => {
+    const s = new Set<string>();
+    location.monitoredAreas.forEach((area) => {
+      area.nodes.forEach((n) => {
+        if (n.status === 'offline') s.add(n.id);
+      });
+    });
+    return s;
+  });
+
+  // Keep offline nodes synchronized when location changes
+  useEffect(() => {
+    setOfflineNodeIds((prev) => {
+      const next = new Set(prev);
+      location.monitoredAreas.forEach((area) => {
+        area.nodes.forEach((n) => {
+          if (n.status === 'offline') next.add(n.id);
+        });
+      });
+      return next;
+    });
+  }, [location]);
+
+  // Toggle offline status simulation for any leaf or root node
+  const handleToggleNodeOffline = (nodeId: string) => {
+    setOfflineNodeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+
+    // Update activePopupNode if open
+    setActivePopupNode((prev) => {
+      if (prev && prev.id === nodeId) {
+        const isNowOffline = !offlineNodeIds.has(nodeId);
+        return {
+          ...prev,
+          status: isNowOffline ? 'offline' : 'online',
+        };
+      }
+      return prev;
+    });
+
+    if (onToggleNodeStatus) {
+      onToggleNodeStatus(nodeId);
+    }
+  };
 
   // Resolve effective tile style
   const effectiveTileStyle =
@@ -567,6 +637,10 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
         const target = allNodesMap.get(node.nextHopNodeId);
         if (!target) return;
 
+        const isNodeOffline = offlineNodeIds.has(node.id) || node.status === 'offline';
+        const isTargetOffline = offlineNodeIds.has(target.id) || target.status === 'offline';
+        const isLinkOffline = isNodeOffline || isTargetOffline;
+
         const isInternalBackbone = node.type === 'internal' && target.type === 'internal';
         const isSelectedHop1 =
           activeLeafNode &&
@@ -589,7 +663,9 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
             [target.lat, target.lng],
           ],
           {
-            color: isSelectedHop1
+            color: isLinkOffline
+              ? '#ef4444'
+              : isSelectedHop1
               ? '#00f0ff'
               : isSelectedHop2
               ? '#38bdf8'
@@ -601,8 +677,8 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
               ? '#64748b'
               : '#475569',
             weight: isHighlighted ? 3.6 : isInternalBackbone ? 2.4 : 1.6,
-            dashArray: isHighlighted ? '5, 4' : isInternalBackbone ? '6, 5' : '3, 3',
-            opacity: isHighlighted ? 1 : isInternalBackbone ? 0.85 : 0.70,
+            dashArray: isLinkOffline ? '4, 4' : isHighlighted ? '5, 4' : isInternalBackbone ? '6, 5' : '3, 3',
+            opacity: isLinkOffline ? 0.65 : isHighlighted ? 1 : isInternalBackbone ? 0.85 : 0.70,
           }
         ).addTo(layerGroup);
       });
@@ -615,43 +691,54 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
       const isInternal = node.type === 'internal';
       const isSelected = activeLeafNode?.id === node.id || targetInternalNode?.id === node.id;
       const isHub = node.id === clusterHubNode?.id;
+      const isOffline = offlineNodeIds.has(node.id) || node.status === 'offline';
 
       let iconHtml = '';
 
       if (isInternal) {
-        // Internal Node: Square navy box with "IN" inside, cyan border
+        // Internal Node: Square navy box with "IN" inside, cyan or red border
         iconHtml = `
           <div class="relative group cursor-pointer">
             <div class="w-8 h-8 rounded-md ${
               isSelected
                 ? 'bg-sky-950 ring-3 ring-cyan-400 shadow-xl shadow-cyan-500/50'
+                : isOffline
+                ? 'bg-red-950 border-2 border-red-500 shadow-lg shadow-red-950/60 ring-2 ring-red-500/50'
                 : 'bg-slate-950 border-2 border-sky-400 shadow-lg'
             } flex flex-col items-center justify-center text-white transition-all transform hover:scale-115">
-              <span class="text-[11px] font-black font-mono tracking-tight text-cyan-300">IN</span>
+              <span class="text-[11px] font-black font-mono tracking-tight ${isOffline ? 'text-red-400' : 'text-cyan-300'}">IN</span>
             </div>
-            <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap px-1.5 py-0.2 rounded bg-slate-950/95 text-sky-200 text-[8px] font-mono border border-slate-700 shadow-xs">
-              ${node.code} ${isHub ? '★ HUB' : ''}
+            <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap px-1.5 py-0.2 rounded ${
+              isOffline
+                ? 'bg-red-950 text-red-300 border-red-700'
+                : 'bg-slate-950/95 text-sky-200 border-slate-700'
+            } text-[8px] font-mono border shadow-xs">
+              ${node.code} ${isOffline ? '● OFFLINE' : isHub ? '★ HUB' : ''}
             </div>
           </div>
         `;
       } else {
-        // Leaf Node: Circular badge with "LN" inside, color reflects sensor state
+        // Leaf Node: Circular badge with "LN" inside, color reflects sensor state or offline state
         const isElevated =
           node.readings.rainfallMmH > 15 ||
           (node.readings.waterLevelM && node.readings.waterLevelM > 2.0);
-        const borderColor = isElevated ? '#f59e0b' : '#22c55e';
-        const bgColor = isElevated ? '#451a03' : '#022c22';
-        const textColor = isElevated ? '#fbbf24' : '#4ade80';
+        const borderColor = isOffline ? '#ef4444' : isElevated ? '#f59e0b' : '#22c55e';
+        const bgColor = isOffline ? '#450a0a' : isElevated ? '#451a03' : '#022c22';
+        const textColor = isOffline ? '#fca5a5' : isElevated ? '#fbbf24' : '#4ade80';
 
         iconHtml = `
           <div class="relative group cursor-pointer">
             <div class="w-6 h-6 rounded-full flex items-center justify-center ${
               isSelected ? 'ring-3 ring-cyan-300 shadow-lg shadow-teal-400/60' : 'shadow-md'
-            } transition-all transform hover:scale-125" style="background-color: ${bgColor}; border: 2.2px solid ${borderColor};">
+            } ${isOffline ? 'ring-2 ring-red-500/60 animate-pulse' : ''} transition-all transform hover:scale-125" style="background-color: ${bgColor}; border: 2.2px solid ${borderColor};">
               <span class="text-[8px] font-black font-mono" style="color: ${textColor};">LN</span>
             </div>
-            <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap px-1 py-0.2 rounded bg-slate-950/95 text-teal-200 text-[8px] font-mono border border-slate-700 shadow-xs">
-              ${node.code}
+            <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap px-1 py-0.2 rounded ${
+              isOffline
+                ? 'bg-red-950 text-red-300 border-red-700 font-bold'
+                : 'bg-slate-950/95 text-teal-200 border-slate-700'
+            } text-[8px] font-mono border shadow-xs">
+              ${node.code} ${isOffline ? '● OFF' : ''}
             </div>
           </div>
         `;
@@ -666,7 +753,91 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
 
       const marker = L.marker([node.lat, node.lng], { icon: customIcon }).addTo(layerGroup);
 
+      // Interactive popup box with requested "Make it offline" / "Bring online" button
+      const popupHtml = `
+        <div class="custom-node-popup p-3 min-w-[240px] text-xs font-sans text-slate-100 bg-slate-950 rounded-lg">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-2 mb-2">
+            <div class="flex items-center gap-1.5">
+              <span class="font-mono font-black text-sm ${isInternal ? 'text-sky-400' : 'text-teal-400'}">${node.code}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded font-bold ${
+                isInternal ? 'bg-sky-950 text-sky-300 border border-sky-800' : 'bg-teal-950 text-teal-300 border border-teal-800'
+              }">
+                ${isInternal ? 'ROOT HUB' : 'LEAF PROBE'}
+              </span>
+            </div>
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded font-mono ${
+              isOffline
+                ? 'bg-red-950 text-red-300 border border-red-800 animate-pulse'
+                : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+            }">
+              ${isOffline ? '● OFFLINE' : '● ONLINE'}
+            </span>
+          </div>
+
+          <div class="text-[11px] space-y-1 mb-2.5">
+            <div class="flex justify-between"><span class="opacity-60">Location:</span><span class="font-semibold truncate max-w-[130px]">${node.name.split('(')[0].trim()}</span></div>
+            <div class="flex justify-between"><span class="opacity-60">Separation:</span><span class="font-mono font-semibold text-cyan-400">4.0 km (Intersecting)</span></div>
+            <div class="flex justify-between"><span class="opacity-60">Battery:</span><span class="font-mono">${node.batteryPercent}% (${node.solarVoltageV}V)</span></div>
+            <div class="flex justify-between"><span class="opacity-60">RF Signal:</span><span class="font-mono">${node.rssiDbm} dBm</span></div>
+            <div class="flex justify-between"><span class="opacity-60">Rainfall:</span><span class="font-mono font-bold text-teal-300">${node.readings.rainfallMmH} mm/h</span></div>
+            <div class="flex justify-between"><span class="opacity-60">Water Stage:</span><span class="font-mono font-bold text-sky-300">${node.readings.waterLevelM ?? 1.2} m</span></div>
+          </div>
+
+          ${isOffline ? `
+            <div class="mb-2 p-1.5 rounded bg-red-950/70 border border-red-800/80 text-[10px] text-red-300 font-mono">
+              ⚠️ Node Outage Simulated: LoRa transceiver is powered down. Mesh will bypass this node.
+            </div>
+          ` : ''}
+
+          <div class="pt-2 border-t border-slate-800 flex flex-col gap-1.5">
+            <button
+              id="btn-toggle-offline-${node.id}"
+              class="w-full py-1.5 px-3 rounded font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
+                isOffline
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                  : 'bg-red-600 hover:bg-red-500 text-white'
+              }"
+            >
+              ${isOffline ? '🟢 Bring Online' : '🔴 Make It Offline'}
+            </button>
+            <button
+              id="btn-inspect-node-${node.id}"
+              class="w-full py-1 px-2 rounded text-[10px] font-semibold text-cyan-300 hover:bg-slate-800 border border-slate-700 transition-colors cursor-pointer text-center"
+            >
+              Open Technical Inspector ➔
+            </button>
+          </div>
+        </div>
+      `;
+
+      marker.bindPopup(popupHtml, {
+        className: 'custom-leaflet-node-popup',
+        maxWidth: 280,
+        minWidth: 240,
+      });
+
+      marker.on('popupopen', () => {
+        const toggleBtn = document.getElementById(`btn-toggle-offline-${node.id}`);
+        if (toggleBtn) {
+          toggleBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleToggleNodeOffline(node.id);
+            marker.closePopup();
+          };
+        }
+        const inspectBtn = document.getElementById(`btn-inspect-node-${node.id}`);
+        if (inspectBtn) {
+          inspectBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onSelectNode(node);
+          };
+        }
+      });
+
       marker.on('click', () => {
+        setActivePopupNode(node);
         if (node.type === 'leaf') {
           setSelectedLeafNodeId(node.id);
           setShowHoppingPanel(true);
@@ -685,6 +856,7 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
     selectedLeafNodeId,
     activeHoppingMethodId,
     effectiveTileStyle,
+    offlineNodeIds,
     isDarkMode,
   ]);
 
@@ -693,6 +865,25 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
   // ---------------------------------------------------------------------------
   const handleTransmitData = () => {
     if (!activeLeafNode || !targetInternalNode || !mapInstanceRef.current) return;
+
+    // Check if source node is offline
+    const isSourceOffline = offlineNodeIds.has(activeLeafNode.id) || activeLeafNode.status === 'offline';
+    if (isSourceOffline) {
+      setTransmissionStatus(
+        `⚠️ TRANSMISSION BLOCKED: Source probe ${activeLeafNode.code} is OFFLINE (Simulated Outage). Click "Bring Online" in its popup box to activate.`
+      );
+      return;
+    }
+
+    // Check if target root hub is offline
+    const isRootOffline = offlineNodeIds.has(targetInternalNode.id) || targetInternalNode.status === 'offline';
+    if (isRootOffline) {
+      setTransmissionStatus(
+        `⚠️ GATEWAY DOWN: Root Hub ${targetInternalNode.code} is OFFLINE (Simulated Outage). LoRaWAN mesh cannot uplink payloads until root gateway power is restored.`
+      );
+      return;
+    }
+
     setIsTransmitting(true);
     setCurrentHopStep(1);
 
@@ -710,7 +901,145 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
       iconAnchor: [8, 8],
     });
 
-    // Phase 1: Hop 1 from Leaf Node ➔ Local Gateway Router
+    if (animationIntervalRef.current) {
+      window.clearInterval(animationIntervalRef.current);
+      animationIntervalRef.current = null;
+    }
+
+    // 1. Direct Star Hop: Single direct hop from Leaf Node to Root Hub (~4.0 km)
+    if (activeHoppingMethodId === 'direct-star') {
+      const startPoint = L.latLng(activeLeafNode.lat, activeLeafNode.lng);
+      const endPoint = L.latLng(targetInternalNode.lat, targetInternalNode.lng);
+      const packetMarker = L.marker(startPoint, { icon: pulseIcon }).addTo(map);
+
+      setTransmissionStatus(
+        `[DIRECT STAR-HOP] Transmitting 32B payload directly from ${activeLeafNode.code} ➔ Root Gateway ${targetInternalNode.code} (~4.0 km, SF7 Point-to-Point Uplink)...`
+      );
+
+      let step = 0;
+      const steps = 30;
+      const intervalMs = 25;
+
+      animationIntervalRef.current = window.setInterval(() => {
+        step += 1;
+        const ratio = step / steps;
+        const lat = startPoint.lat + (endPoint.lat - startPoint.lat) * ratio;
+        const lng = startPoint.lng + (endPoint.lng - startPoint.lng) * ratio;
+        packetMarker.setLatLng([lat, lng]);
+
+        if (step >= steps) {
+          if (animationIntervalRef.current) {
+            window.clearInterval(animationIntervalRef.current);
+            animationIntervalRef.current = null;
+          }
+          map.removeLayer(packetMarker);
+          setIsTransmitting(false);
+          setCurrentHopStep(0);
+          setTransmissionStatus(
+            `SUCCESS [DIRECT STAR-HOP COMPLETE]: Single-hop ACK from Gateway ${targetInternalNode.code} (~4.0 km). Latency: 110ms, RSSI: ${activeLeafNode.rssiDbm} dBm, PDR: 98.6%. Telemetry: Rain ${activeLeafNode.readings.rainfallMmH} mm/h, Water Stage ${activeLeafNode.readings.waterLevelM || 1.2}m.`
+          );
+        }
+      }, intervalMs);
+      return;
+    }
+
+    // 2. Leaf-by-Leaf Hopping: Sequential leaf to nearby leaf then to root node
+    if (activeHoppingMethodId === 'leaf-by-leaf') {
+      const areaLeafs = (location.monitoredAreas.find((a) => a.id === activeLeafNode.areaId)?.nodes || [])
+        .filter((n) => n.type === 'leaf')
+        .sort((a, b) => a.code.localeCompare(b.code));
+
+      const activeIdx = areaLeafs.findIndex((n) => n.id === activeLeafNode.id);
+      const rawPath: SensorNode[] = [];
+      if (activeIdx >= 0) {
+        for (let i = activeIdx; i >= 0; i--) {
+          rawPath.push(areaLeafs[i]);
+        }
+      } else {
+        rawPath.push(activeLeafNode);
+      }
+      rawPath.push(targetInternalNode);
+
+      // Check for any offline intermediate nodes and dynamically route around them!
+      const activePath: SensorNode[] = [];
+      const bypassedNodes: string[] = [];
+
+      rawPath.forEach((node, i) => {
+        const isOff = offlineNodeIds.has(node.id) || node.status === 'offline';
+        if (i === 0 || i === rawPath.length - 1) {
+          activePath.push(node);
+        } else if (isOff) {
+          bypassedNodes.push(node.code);
+        } else {
+          activePath.push(node);
+        }
+      });
+
+      const totalHops = activePath.length - 1;
+      const startPoint = L.latLng(activePath[0].lat, activePath[0].lng);
+      const packetMarker = L.marker(startPoint, { icon: pulseIcon }).addTo(map);
+
+      const stepsPerHop = 24;
+      const intervalMs = 26;
+
+      const runHop = (hopIdx: number) => {
+        if (hopIdx >= totalHops) {
+          map.removeLayer(packetMarker);
+          setIsTransmitting(false);
+          setCurrentHopStep(0);
+          const rerouteNote =
+            bypassedNodes.length > 0
+              ? ` (Dynamic mesh rerouted around offline probe: ${bypassedNodes.join(', ')})`
+              : '';
+          setTransmissionStatus(
+            `SUCCESS [LEAF-BY-LEAF HOPPING COMPLETE]: ${totalHops} Hops traversed (${activePath
+              .map((n) => n.code)
+              .join(' ➔ ')})${rerouteNote} ➔ Cloud Edge! Total Latency: ${totalHops * 105}ms, RSSI: ${
+              activeLeafNode.rssiDbm
+            } dBm, PDR: 99.8%. Readings: Rain ${activeLeafNode.readings.rainfallMmH} mm/h, Water Stage ${
+              activeLeafNode.readings.waterLevelM || 1.2
+            }m.`
+          );
+          return;
+        }
+
+        const fromNode = activePath[hopIdx];
+        const toNode = activePath[hopIdx + 1];
+        setCurrentHopStep(hopIdx + 1);
+
+        const isHopToRoot = toNode.type === 'internal';
+        setTransmissionStatus(
+          `[HOP ${hopIdx + 1}/${totalHops} IN PROGRESS] ${fromNode.code} relaying payload to nearby ${toNode.code} (${
+            isHopToRoot ? 'Root Gateway Hub' : 'Adjacent Leaf Probe'
+          }, ~4.0 km away)...`
+        );
+
+        const hopStart = L.latLng(fromNode.lat, fromNode.lng);
+        const hopEnd = L.latLng(toNode.lat, toNode.lng);
+        let step = 0;
+
+        animationIntervalRef.current = window.setInterval(() => {
+          step += 1;
+          const ratio = step / stepsPerHop;
+          const lat = hopStart.lat + (hopEnd.lat - hopStart.lat) * ratio;
+          const lng = hopStart.lng + (hopEnd.lng - hopStart.lng) * ratio;
+          packetMarker.setLatLng([lat, lng]);
+
+          if (step >= stepsPerHop) {
+            if (animationIntervalRef.current) {
+              window.clearInterval(animationIntervalRef.current);
+              animationIntervalRef.current = null;
+            }
+            runHop(hopIdx + 1);
+          }
+        }, intervalMs);
+      };
+
+      runHop(0);
+      return;
+    }
+
+    // 3. Fallback: Adaptive Multi-Hop Mesh (Leaf ➔ Gateway ➔ Hub)
     const startPoint = L.latLng(activeLeafNode.lat, activeLeafNode.lng);
     const endPointHop1 = L.latLng(targetInternalNode.lat, targetInternalNode.lng);
     const packetMarker = L.marker(startPoint, { icon: pulseIcon }).addTo(map);
@@ -722,10 +1051,6 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
     let step = 0;
     const stepsHop1 = 28;
     const intervalMs = 28;
-
-    if (animationIntervalRef.current) {
-      window.clearInterval(animationIntervalRef.current);
-    }
 
     animationIntervalRef.current = window.setInterval(() => {
       step += 1;
@@ -741,16 +1066,14 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
           animationIntervalRef.current = null;
         }
 
-        // If Direct Star-Hop, we finish at Hop 1!
-        if (activeHoppingMethodId === 'direct-star' || !clusterHubNode || clusterHubNode.id === targetInternalNode.id) {
+        if (!clusterHubNode || clusterHubNode.id === targetInternalNode.id) {
           map.removeLayer(packetMarker);
           setIsTransmitting(false);
           setCurrentHopStep(0);
           setTransmissionStatus(
-            `SUCCESS [DIRECT STAR-HOP COMPLETE]: Single-hop ACK from Gateway ${targetInternalNode.code}. Latency: 110ms, RSSI: ${activeLeafNode.rssiDbm} dBm, PDR: ${method.pdrPercent}%. Readings: Rain ${activeLeafNode.readings.rainfallMmH} mm/h, Stage ${activeLeafNode.readings.waterLevelM || 1.2}m.`
+            `SUCCESS [DIRECT HOP COMPLETE]: ACK from Gateway ${targetInternalNode.code}. Latency: 110ms, RSSI: ${activeLeafNode.rssiDbm} dBm, PDR: ${method.pdrPercent}%. Readings: Rain ${activeLeafNode.readings.rainfallMmH} mm/h, Stage ${activeLeafNode.readings.waterLevelM || 1.2}m.`
           );
         } else {
-          // Phase 2: Hop 2 from Local Gateway ➔ Cluster Backbone Hub Router
           setCurrentHopStep(2);
           setTransmissionStatus(
             `[HOP 1 VERIFIED ➔ HOP 2 IN PROGRESS] Relay Gateway ${targetInternalNode.code} forwarding packet across mesh corridor to Hub ${clusterHubNode.code}...`
@@ -1152,8 +1475,9 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
                 : 'bg-white text-slate-900 border-slate-300 focus:border-teal-600 shadow-xs'
             }`}
           >
+            <option value="leaf-by-leaf">Leaf-by-Leaf Hopping (Leaf ➔ Nearby Leaf ➔ Root Node)</option>
+            <option value="direct-star">Direct Star-Hop (Direct Leaf ➔ Root Hub)</option>
             <option value="adaptive-mesh">Adaptive Multi-Hop Mesh (RPL / ETX)</option>
-            <option value="direct-star">Direct Star-Hop (Direct-to-Gateway)</option>
             <option value="emergency-flood">Emergency Flood-Hop (High Penetration SF10)</option>
           </select>
           <div className="text-[10px] opacity-70 mt-1 flex items-center justify-between font-mono">
@@ -1186,11 +1510,14 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
                   : 'bg-white text-slate-900 border-slate-300 focus:border-teal-600 shadow-xs'
               }`}
             >
-              {leafNodes.map((n) => (
-                <option key={n.id} value={n.id}>
-                  {n.code} ({n.name.split('—')[1]?.trim()?.split('(')[0]?.slice(0, 10) || 'Sensor'})
-                </option>
-              ))}
+              {leafNodes.map((n) => {
+                const isOff = offlineNodeIds.has(n.id) || n.status === 'offline';
+                return (
+                  <option key={n.id} value={n.id}>
+                    {n.code} {isOff ? '(OFFLINE)' : ''} ({n.name.split('—')[1]?.trim()?.split('(')[0]?.slice(0, 10) || 'Sensor'})
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -1205,7 +1532,7 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
                 isDarkMode ? 'text-slate-400' : 'text-slate-600'
               }`}
             >
-              HOP 1: GATEWAY
+              HOP RECIPIENT: ROOT HUB
             </span>
             <div
               className={`text-xs font-bold truncate ${
@@ -1215,60 +1542,147 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
               {targetInternalNode ? targetInternalNode.code : 'IN-01'} Router
             </div>
             <div className="text-[10px] truncate opacity-70 font-mono">
-              {activeHoppingMethodId === 'direct-star' ? 'Final Recipient' : `➔ Relays to ${clusterHubNode?.code || 'IN-01'}`}
+              {activeHoppingMethodId === 'direct-star'
+                ? 'Single 4km Direct Hop'
+                : activeHoppingMethodId === 'leaf-by-leaf'
+                ? 'Mesh Chain Destination'
+                : `➔ Relays to ${clusterHubNode?.code || 'IN-01'}`}
             </div>
           </div>
         </div>
 
         {/* Hop Sequence Visual Pipeline */}
         <div
-          className={`mb-3 p-2 rounded-lg border text-[10px] font-mono flex items-center justify-between ${
+          className={`mb-3 p-2 rounded-lg border text-[10px] font-mono ${
             isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-slate-100 border-slate-200'
           }`}
         >
-          <div className="flex items-center gap-1">
-            <span
-              className={`px-1.5 py-0.5 rounded font-bold ${
-                isTransmitting && currentHopStep === 1
-                  ? 'bg-cyan-500 text-slate-950 animate-pulse'
-                  : 'bg-slate-800 text-cyan-300'
-              }`}
-            >
-              {activeLeafNode?.code || 'LN'}
-            </span>
-            <span className="opacity-50">➔</span>
-            <span
-              className={`px-1.5 py-0.5 rounded font-bold ${
-                isTransmitting && currentHopStep === 2
-                  ? 'bg-sky-500 text-slate-950 animate-pulse'
-                  : 'bg-slate-800 text-sky-300'
-              }`}
-            >
-              {targetInternalNode?.code || 'IN'}
-            </span>
-            {activeHoppingMethodId !== 'direct-star' && (
-              <>
-                <span className="opacity-50">➔</span>
-                <span className="px-1.5 py-0.5 rounded font-bold bg-slate-800 text-indigo-300">
-                  {clusterHubNode?.code || 'HUB'}
-                </span>
-              </>
-            )}
-            <span className="opacity-50">➔</span>
-            <span className="px-1.5 py-0.5 rounded font-bold bg-slate-800 text-emerald-300">
-              CLOUD
+          <div className="flex items-center justify-between mb-1 opacity-60 text-[9px] uppercase font-bold tracking-wider">
+            <span>Transmission Hop Sequence:</span>
+            <span>
+              {activeHoppingMethodId === 'direct-star'
+                ? '1 Direct Hop (~4.0 km)'
+                : activeHoppingMethodId === 'leaf-by-leaf'
+                ? 'Multi-Hop Chain (~4.0 km each)'
+                : '2 Hops Mesh'}
             </span>
           </div>
-          <span className="font-sans text-[9px] opacity-75 font-semibold">
-            {activeHoppingMethodId === 'direct-star' ? '1 Hop' : '2 Hops'}
-          </span>
+
+          {activeHoppingMethodId === 'leaf-by-leaf' ? (
+            (() => {
+              const areaLeafs = (location.monitoredAreas.find((a) => a.id === activeLeafNode?.areaId)?.nodes || [])
+                .filter((n) => n.type === 'leaf')
+                .sort((a, b) => a.code.localeCompare(b.code));
+              const activeIdx = areaLeafs.findIndex((n) => n.id === activeLeafNode?.id);
+              const sequence: SensorNode[] = [];
+              if (activeIdx >= 0) {
+                for (let i = activeIdx; i >= 0; i--) {
+                  sequence.push(areaLeafs[i]);
+                }
+              } else if (activeLeafNode) {
+                sequence.push(activeLeafNode);
+              }
+              if (targetInternalNode) sequence.push(targetInternalNode);
+
+              return (
+                <div className="flex items-center gap-1 overflow-x-auto py-1">
+                  {sequence.map((n, i) => {
+                    const isHopActive = isTransmitting && currentHopStep === i + 1;
+                    const isOff = offlineNodeIds.has(n.id) || n.status === 'offline';
+                    const isRoot = n.type === 'internal';
+
+                    return (
+                      <React.Fragment key={n.id}>
+                        {i > 0 && <span className="opacity-40 text-[9px]">➔</span>}
+                        <div
+                          className={`px-1.5 py-0.5 rounded font-mono text-[9px] flex items-center gap-0.5 border ${
+                            isOff
+                              ? 'bg-red-950 text-red-300 border-red-800 line-through opacity-80'
+                              : isHopActive
+                              ? 'bg-cyan-400 text-slate-950 font-bold animate-pulse border-cyan-300 shadow-md shadow-cyan-400/50'
+                              : isRoot
+                              ? 'bg-sky-950 text-sky-300 border-sky-800 font-bold'
+                              : 'bg-slate-800 text-teal-300 border-slate-700'
+                          }`}
+                          title={`${n.code} (~4.0 km hop distance) ${isOff ? 'OFFLINE' : 'ONLINE'}`}
+                        >
+                          <span>{n.code}</span>
+                          {isOff && <span className="text-[7px] text-red-400 font-sans font-bold">OFF</span>}
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
+                  <span className="opacity-40 text-[9px]">➔</span>
+                  <span className="px-1.5 py-0.5 rounded font-mono text-[9px] bg-slate-800 text-emerald-300 border border-slate-700 font-bold">
+                    CLOUD
+                  </span>
+                </div>
+              );
+            })()
+          ) : activeHoppingMethodId === 'direct-star' ? (
+            <div className="flex items-center gap-1.5 py-1">
+              <span
+                className={`px-1.5 py-0.5 rounded font-bold ${
+                  isTransmitting && currentHopStep === 1
+                    ? 'bg-cyan-500 text-slate-950 animate-pulse'
+                    : 'bg-slate-800 text-cyan-300'
+                }`}
+              >
+                {activeLeafNode?.code || 'LN'}
+              </span>
+              <span className="opacity-50 text-[9px]">➔ (~4.0 km Direct Star) ➔</span>
+              <span
+                className={`px-1.5 py-0.5 rounded font-bold ${
+                  isTransmitting && currentHopStep === 1
+                    ? 'bg-sky-500 text-slate-950'
+                    : 'bg-slate-800 text-sky-300'
+                }`}
+              >
+                {targetInternalNode?.code || 'IN'} (Root Hub)
+              </span>
+              <span className="opacity-50">➔</span>
+              <span className="px-1.5 py-0.5 rounded font-bold bg-slate-800 text-emerald-300">
+                CLOUD
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 py-1">
+              <span
+                className={`px-1.5 py-0.5 rounded font-bold ${
+                  isTransmitting && currentHopStep === 1
+                    ? 'bg-cyan-500 text-slate-950 animate-pulse'
+                    : 'bg-slate-800 text-cyan-300'
+                }`}
+              >
+                {activeLeafNode?.code || 'LN'}
+              </span>
+              <span className="opacity-50">➔</span>
+              <span
+                className={`px-1.5 py-0.5 rounded font-bold ${
+                  isTransmitting && currentHopStep === 2
+                    ? 'bg-sky-500 text-slate-950 animate-pulse'
+                    : 'bg-slate-800 text-sky-300'
+                }`}
+              >
+                {targetInternalNode?.code || 'IN'}
+              </span>
+              <span className="opacity-50">➔</span>
+              <span className="px-1.5 py-0.5 rounded font-bold bg-slate-800 text-indigo-300">
+                {clusterHubNode?.code || 'HUB'}
+              </span>
+              <span className="opacity-50">➔</span>
+              <span className="px-1.5 py-0.5 rounded font-bold bg-slate-800 text-emerald-300">
+                CLOUD
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Action Button: TRANSMIT DATA WITH HOPPING */}
         <button
           onClick={handleTransmitData}
           disabled={isTransmitting}
-          className={`w-full py-2 px-4 rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+          className={`w-full py-2 px-4 rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
             isTransmitting
               ? isDarkMode
                 ? 'bg-cyan-950 text-cyan-400 border border-cyan-700 cursor-not-allowed'
@@ -1449,6 +1863,131 @@ export const GeospatialLeafletMap: React.FC<GeospatialLeafletMapProps> = ({
                     }`}
                   >
                     Inspect Probes
+                  </button>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ACTIVE NODE DETAIL & OFFLINE SIMULATION POPUP CARD (ON-MAP OVERLAY)        */}
+      {/* ========================================================================= */}
+      {activePopupNode && (
+        <div
+          className={`absolute top-26 right-4 sm:right-auto sm:left-4 z-20 w-80 sm:w-84 rounded-xl border p-4 shadow-2xl backdrop-blur-md transition-all ${
+            isDarkMode
+              ? 'bg-slate-950/95 border-slate-800 text-white'
+              : 'bg-white/95 border-slate-300 text-slate-900 shadow-slate-400/30'
+          }`}
+        >
+          {(() => {
+            const isInternal = activePopupNode.type === 'internal';
+            const isOffline =
+              offlineNodeIds.has(activePopupNode.id) || activePopupNode.status === 'offline';
+
+            return (
+              <>
+                <div className="flex items-center justify-between mb-3 border-b border-current/10 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded font-black font-mono tracking-tight border ${
+                        isInternal
+                          ? 'bg-sky-950 text-sky-300 border-sky-700'
+                          : 'bg-teal-950 text-teal-300 border-teal-700'
+                      }`}
+                    >
+                      {activePopupNode.code}
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-75">
+                      {isInternal ? 'Root Gateway Hub' : 'Field Sensor Probe'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setActivePopupNode(null)}
+                    className="p-1 rounded-md hover:bg-current/10 opacity-70 hover:opacity-100 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold truncate max-w-[170px]">
+                    {activePopupNode.name}
+                  </h3>
+                  <span
+                    className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
+                      isOffline
+                        ? 'bg-red-950 text-red-300 border-red-800 animate-pulse'
+                        : 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                    }`}
+                  >
+                    {isOffline ? '● OFFLINE (SIMULATED)' : '● OPERATIONAL'}
+                  </span>
+                </div>
+
+                {isOffline && (
+                  <div className="mb-3 p-2 rounded-lg bg-red-950/60 border border-red-800/80 text-[10px] text-red-300 font-mono">
+                    ⚠️ Simulated Outage: This node is powered down. Leaf-by-leaf hopping mesh
+                    automatically reroutes packets around this node.
+                  </div>
+                )}
+
+                <div
+                  className={`p-2.5 rounded-lg border text-xs space-y-2 mb-3 ${
+                    isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="opacity-75">Spacing to Neighbor:</span>
+                    <span className="font-mono font-bold text-cyan-400">4.0 km (Intersecting)</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="opacity-75">Coverage Radius:</span>
+                    <span className="font-mono font-bold text-emerald-400">4.5 km</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="opacity-75">Battery Reserve:</span>
+                    <span className="font-mono font-bold">
+                      {activePopupNode.batteryPercent}% ({activePopupNode.solarVoltageV}V)
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="opacity-75">Rainfall Intensity:</span>
+                    <span className="font-mono font-bold">
+                      {activePopupNode.readings.rainfallMmH} mm/h
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="opacity-75">Water Stage:</span>
+                    <span className="font-mono font-bold">
+                      {activePopupNode.readings.waterLevelM ?? 1.2} m
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleToggleNodeOffline(activePopupNode.id)}
+                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                      isOffline
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                        : 'bg-red-600 hover:bg-red-500 text-white border-red-500 shadow-sm'
+                    }`}
+                  >
+                    {isOffline ? '🟢 Bring Online' : '🔴 Make It Offline'}
+                  </button>
+
+                  <button
+                    onClick={() => onSelectNode(activePopupNode)}
+                    className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                      isDarkMode
+                        ? 'bg-slate-900 hover:bg-slate-800 text-cyan-300 border-slate-700'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                    }`}
+                  >
+                    Details ➔
                   </button>
                 </div>
               </>

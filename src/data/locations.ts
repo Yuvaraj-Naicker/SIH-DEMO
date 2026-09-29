@@ -100,7 +100,8 @@ function createAreaNodes(
   const basePrefix = areaId.replace(/-\d+$/, '');
   const nextHopInternal = areaIndex === 1 ? undefined : `${basePrefix}-${areaIndex - 1}-INT-1`;
 
-  // 1 INTERNAL NODE (Gateway Router) — one per monitored area; 6 total in the active city
+  // 1 INTERNAL NODE (Gateway Router / Cluster Root Node)
+  // Coverage radius of 4.5 km so every node comfortably intersects adjacent nodes
   const internalNode: SensorNode = {
     id: internalNodeId,
     code: internalCode,
@@ -110,8 +111,8 @@ function createAreaNodes(
     lat: internalCoords.lat,
     lng: internalCoords.lng,
     elevationM: 14 + areaIndex * 2,
-    coverageRadiusKm: 1.85, // Generous overlapping coverage radius (~1.85km) intersecting adjacent areas
-    hardwareModel: 'TW-GW400 Dual-LoRaWAN Mesh Gateway',
+    coverageRadiusKm: 4.5, // 4.5 km intersecting radius ensuring all 4 km separated nodes intersect
+    hardwareModel: 'TW-GW400 Dual-LoRaWAN Mesh Gateway (Root Hub)',
     sensorTypes: ['Dual-LoRaWAN Mesh Router', 'Barometric Temp/Humidity', 'Gateway Uplink 4G/NB-IoT'],
     batteryPercent: 94 - (areaIndex % 3),
     solarVoltageV: 4.15,
@@ -132,20 +133,40 @@ function createAreaNodes(
   };
 
   // 4 LEAF NODES (Field Sensor Probes)
-  // Four-direction natural spread (~450m - 750m) ensuring overlapping coverage with internal node and adjacent leaf nodes
-  const leafScatter = [
-    { dLat: +0.0052, dLng: -0.0042, label: 'Ultrasonic Stage Gauge' },
-    { dLat: -0.0048, dLng: +0.0042, label: 'Tipping Bucket Rain Gauge' },
-    { dLat: +0.0044, dLng: +0.0045, label: 'Soil Saturation & Pore Probe' },
-    { dLat: -0.0050, dLng: -0.0044, label: 'Optical Velocity & Depth Sensor' },
+  // Geometrically spaced exactly 4.0 km away from each other and from the root node
+  // along an inland constellation arc with 4.5 km coverage circles so ALL nodes intersect.
+  const R_KM = 4.0;
+  const degLatPerKm = 1 / 110.574;
+  const degLngPerKm = 1 / (111.320 * Math.cos((centerLat * Math.PI) / 180));
+
+  // Determine inland orientation:
+  // If Puducherry / Chennai (Bay of Bengal to East), spread landward to West (angles 100° to 280°)
+  // If Mumbai / Kerala (Arabian Sea to West), spread landward to East (angles -80° to 100°)
+  const isEastCoast = centerLng > 78.5; // Puducherry & Chennai are East Coast (> 78.5°E)
+  const baseAngleDeg = isEastCoast ? 100 + ((areaIndex % 3) * 5) : -80 + ((areaIndex % 3) * 5);
+
+  const leafProbeLabels = [
+    'Ultrasonic Stage Gauge',
+    'Tipping Bucket Rain Gauge',
+    'Soil Saturation & Pore Probe',
+    'Optical Velocity & Depth Sensor',
   ];
 
   const startLeafNum = (areaIndex - 1) * 4 + 1;
-  const leafNodes: SensorNode[] = leafScatter.map((off, idx) => {
+  const leafNodes: SensorNode[] = [0, 1, 2, 3].map((idx) => {
+    const angleRad = ((baseAngleDeg + idx * 60) * Math.PI) / 180;
+    const dLat = R_KM * degLatPerKm * Math.sin(angleRad);
+    const dLng = R_KM * degLngPerKm * Math.cos(angleRad);
+
     const leafNumber = startLeafNum + idx;
     const leafCode = `LN-${String(leafNumber).padStart(2, '0')}`;
     const leafId = `${areaId}-LEAF-${idx + 1}`;
-    const rawCoords = clampToLand(centerLat + off.dLat, centerLng + off.dLng);
+    const rawCoords = clampToLand(internalCoords.lat + dLat, internalCoords.lng + dLng);
+
+    // Leaf-by-leaf hopping topology:
+    // LN-4 hops to LN-3 (4.0 km), LN-3 hops to LN-2 (4.0 km), LN-2 hops to LN-1 (4.0 km), and LN-1 hops to Root Gateway (4.0 km)
+    const nextHopInChain = idx === 0 ? internalNodeId : `${areaId}-LEAF-${idx}`;
+    const hopsInChain = idx + 1;
 
     return {
       id: leafId,
@@ -155,17 +176,17 @@ function createAreaNodes(
       areaId,
       lat: rawCoords.lat,
       lng: rawCoords.lng,
-      elevationM: 10 + (idx * 3),
-      coverageRadiusKm: 1.35, // Overlapping coverage with Internal Node and adjacent leaf nodes (~1.35km)
+      elevationM: 10 + idx * 3,
+      coverageRadiusKm: 4.5, // 4.5 km coverage radius ensuring adjacent 4 km nodes intersect seamlessly
       hardwareModel: 'TW-SN100 Multi-Sensor LoRa Probe',
-      sensorTypes: [off.label, 'Ambient Hydrometric Telemetry', 'LoRa 865MHz'],
-      batteryPercent: 88 - (idx * 3),
-      solarVoltageV: 3.9 - (idx * 0.05),
-      rssiDbm: -76 - (idx * 3),
+      sensorTypes: [leafProbeLabels[idx], 'Ambient Hydrometric Telemetry', 'LoRa 865MHz'],
+      batteryPercent: 88 - idx * 3,
+      solarVoltageV: Number((3.9 - idx * 0.05).toFixed(2)),
+      rssiDbm: -76 - idx * 3,
       packetLossPercent: Number((0.4 + idx * 0.2).toFixed(2)),
       lastPingSecAgo: 8 + idx * 4,
-      hopsToGateway: 1,
-      nextHopNodeId: internalNodeId, // Hopping directly to its area's internal gateway router
+      hopsToGateway: hopsInChain,
+      nextHopNodeId: nextHopInChain, // Sequential leaf-by-leaf hopping to nearby leaf, then to root
       status: 'online',
       readings: {
         rainfallMmH: Number((baseRainfall * (0.92 + idx * 0.05)).toFixed(1)),
@@ -173,7 +194,7 @@ function createAreaNodes(
         ambientTempC: Number((27.8 + idx * 0.3).toFixed(1)),
         humidityPercent: Math.min(98, 85 + idx * 2),
         windSpeedKmh: Number((windKmh + (idx - 1.5) * 1.2).toFixed(1)),
-        soilMoisturePercent: soilMoisture ? Math.min(100, Math.round(soilMoisture + (idx * 2))) : undefined,
+        soilMoisturePercent: soilMoisture ? Math.min(100, Math.round(soilMoisture + idx * 2)) : undefined,
       },
     };
   });
@@ -1099,61 +1120,61 @@ export const LOCATIONS: Record<string, LocationConfig> = {
       'Ousteri Lake freshwater bird sanctuary watershed',
       'Urban French Quarter stormwater drainage outfall',
     ],
-    environmentalSummary: 'Moderate easterly sea breeze along the Coromandel coast with isolated light showers. Gingee river flow is within normal seasonal bounds, and the Goubert Avenue promenade seawall reports safe tidal conditions.',
+    environmentalSummary: 'Continuous crystal clear skies and calm sea conditions across the Puducherry Coromandel coast with gentle easterly sea breeze. Solar irradiance is optimal at 4.75V harvesting across all 30 mesh sensor nodes, with zero precipitation recorded across all municipal stations and safe tidal conditions along the Goubert Avenue promenade.',
     liveMetrics: {
-      rainfallRateMmH: 6.4,
-      rainfall24hMm: 28.2,
-      peakWaterLevelM: 1.45,
+      rainfallRateMmH: 0.0,
+      rainfall24hMm: 0.0,
+      peakWaterLevelM: 1.15,
       waterDangerMarkM: 2.80,
-      ambientTempC: 29.4,
-      relativeHumidityPercent: 82,
-      soilMoisturePercent: 54,
-      windSpeedKmh: 18.0,
-      windDirection: 'E',
-      barometricPressureHpa: 1008.4,
-      coastalTideM: 1.15,
-      compositeRiskIndex: 28,
+      ambientTempC: 30.8,
+      relativeHumidityPercent: 58,
+      soilMoisturePercent: 44,
+      windSpeedKmh: 14.0,
+      windDirection: 'ENE',
+      barometricPressureHpa: 1011.2,
+      coastalTideM: 1.10,
+      compositeRiskIndex: 16,
       compositeRiskLevel: 'Low',
     },
     riskCategories: [
       {
         id: 'coastal-surge',
         name: 'Coastal Seawall & Tide Risk',
-        score: 32,
+        score: 18,
         level: 'Low',
         trend: 'steady',
-        summary: 'Goubert Avenue rock revetment and artificial reef absorbing moderate 1.4m swell.',
-        keyFactors: ['Normal tidal range 1.15m', 'Artificial reef dissipating wave energy', 'No cyclonic storm warning active'],
+        summary: 'Goubert Avenue rock revetment and artificial reef absorbing calm 0.9m swell.',
+        keyFactors: ['Normal calm tidal range 1.10m', 'Artificial reef dissipating wave energy', 'No cyclonic activity in Bay of Bengal'],
         warningThreshold: 'Tidal level > 2.0m or swell > 2.5m',
       },
       {
         id: 'river-overflow',
         name: 'Gingee River Basin Risk',
-        score: 24,
+        score: 14,
         level: 'Low',
         trend: 'steady',
-        summary: 'Sankaraparani river stage at Villianur bridge operating 1.35m below warning threshold.',
-        keyFactors: ['Upstream Sathanur dam discharge zero', 'Local tributary runoff minimal', 'All culverts clear'],
+        summary: 'Sankaraparani river stage at Villianur bridge operating safely 1.65m below warning threshold.',
+        keyFactors: ['Zero dam release upstream', 'Catchment runoff zero', 'All culverts clear'],
         warningThreshold: 'Water level > 2.20m',
       },
       {
         id: 'urban-drainage',
         name: 'French Quarter Drainage Risk',
-        score: 29,
+        score: 12,
         level: 'Low',
         trend: 'steady',
-        summary: 'Heritage French grid stormwater canals discharging freely into the Bay of Bengal.',
-        keyFactors: ['Outfall flap gates unobstructed', 'Routine desilting completed', 'Tidal gates operational'],
+        summary: 'Heritage French grid stormwater canals clear and dry, draining freely to the Bay of Bengal.',
+        keyFactors: ['Outfall flap gates fully open', 'Zero silt accumulation', 'Tidal gates nominal'],
         warningThreshold: 'Rainfall > 35 mm/h during high tide',
       },
       {
         id: 'heavy-rain',
-        name: 'Precipitation Risk',
-        score: 26,
+        name: 'Precipitation Risk (Clear Sky)',
+        score: 6,
         level: 'Low',
         trend: 'steady',
-        summary: 'Scattered cumulus clouds producing intermittent drizzle over the coastal plain.',
-        keyFactors: ['IMD Green status', 'Radar reflectivity < 25 dBZ', 'Precipitable water 38 mm'],
+        summary: 'Clear blue skies with high solar flux. Zero precipitation recorded across all LoRaWAN mesh probes.',
+        keyFactors: ['IMD Clear / Green status', 'Radar reflectivity 0 dBZ', 'High solar harvesting index'],
         warningThreshold: 'Rain intensity > 30 mm/h',
       },
     ],
@@ -1165,15 +1186,15 @@ export const LOCATIONS: Record<string, LocationConfig> = {
         description: 'Natural drainage depression capturing runoff from south Puducherry into Velrampet Lake and Murungapakkam outfall.',
         centerLat: 11.918,
         centerLng: 79.814,
-        currentRisk: 'High',
-        primaryThreat: 'Velrampet lake surplus run-off and Cuddalore road low-point water ponding',
-        averageRainfall24hMm: 48.5,
-        maxWaterLevelM: 2.05,
+        currentRisk: 'Low',
+        primaryThreat: 'Routine surveillance of Velrampet lake weir and Cuddalore arterial corridor',
+        averageRainfall24hMm: 0.0,
+        maxWaterLevelM: 1.05,
         waterLevelThresholdM: 2.20,
-        soilMoisturePercent: 75,
+        soilMoisturePercent: 45,
         internalCoverageRadiusKm: 1.85,
         leafCoverageRadiusKm: 1.35,
-        nodes: createAreaNodes('pud-area-1', 'Mudaliarpet-Velrampet', 11.918, 79.814, 18.8, 2.05, 75, 22),
+        nodes: createAreaNodes('pud-area-1', 'Mudaliarpet-Velrampet', 11.918, 79.814, 0.0, 1.05, 45, 14),
       },
       {
         id: 'pud-area-2',
@@ -1183,14 +1204,14 @@ export const LOCATIONS: Record<string, LocationConfig> = {
         centerLat: 11.934,
         centerLng: 79.795,
         currentRisk: 'Low',
-        primaryThreat: 'Highway culvert blockage causing localized street ponding during convective rainfall bursts',
-        averageRainfall24hMm: 27.0,
-        maxWaterLevelM: 0.75,
+        primaryThreat: 'Routine monitoring of highway culvert clearance and suburban branch canals',
+        averageRainfall24hMm: 0.0,
+        maxWaterLevelM: 0.65,
         waterLevelThresholdM: 1.40,
-        soilMoisturePercent: 52,
+        soilMoisturePercent: 42,
         internalCoverageRadiusKm: 1.85,
         leafCoverageRadiusKm: 1.35,
-        nodes: createAreaNodes('pud-area-2', 'Reddiarpalayam-Moolakulam', 11.934, 79.795, 6.2, 0.75, 52, 16),
+        nodes: createAreaNodes('pud-area-2', 'Reddiarpalayam-Moolakulam', 11.934, 79.795, 0.0, 0.65, 42, 14),
       },
       {
         id: 'pud-area-3',
@@ -1200,14 +1221,14 @@ export const LOCATIONS: Record<string, LocationConfig> = {
         centerLat: 11.948,
         centerLng: 79.806,
         currentRisk: 'Low',
-        primaryThreat: 'Micro-drain capacity saturation during high-intensity tropical shower spikes',
-        averageRainfall24hMm: 30.2,
-        maxWaterLevelM: 0.90,
+        primaryThreat: 'Routine monitoring of micro-drain network and stormwater gravity channels',
+        averageRainfall24hMm: 0.0,
+        maxWaterLevelM: 0.70,
         waterLevelThresholdM: 1.60,
-        soilMoisturePercent: 56,
+        soilMoisturePercent: 44,
         internalCoverageRadiusKm: 1.85,
         leafCoverageRadiusKm: 1.35,
-        nodes: createAreaNodes('pud-area-3', 'Ozhukarai-Thilaspet', 11.948, 79.806, 7.0, 0.90, 56, 17),
+        nodes: createAreaNodes('pud-area-3', 'Ozhukarai-Thilaspet', 11.948, 79.806, 0.0, 0.70, 44, 15),
       },
       {
         id: 'pud-area-4',
@@ -1217,14 +1238,14 @@ export const LOCATIONS: Record<string, LocationConfig> = {
         centerLat: 11.931,
         centerLng: 79.824,
         currentRisk: 'Low',
-        primaryThreat: 'High tide back-pressure slowing canal gravity discharge into coastal outfall',
-        averageRainfall24hMm: 26.0,
-        maxWaterLevelM: 1.15,
+        primaryThreat: 'Canal gravity discharge surveillance and Goubert Avenue seawall telemetry',
+        averageRainfall24hMm: 0.0,
+        maxWaterLevelM: 0.85,
         waterLevelThresholdM: 2.10,
-        soilMoisturePercent: 48,
+        soilMoisturePercent: 40,
         internalCoverageRadiusKm: 1.85,
         leafCoverageRadiusKm: 1.35,
-        nodes: createAreaNodes('pud-area-4', 'Boulevard-Grand Bazaar', 11.931, 79.824, 6.4, 1.15, 48, 20),
+        nodes: createAreaNodes('pud-area-4', 'Boulevard-Grand Bazaar', 11.931, 79.824, 0.0, 0.85, 40, 16),
       },
       {
         id: 'pud-area-5',
@@ -1233,15 +1254,15 @@ export const LOCATIONS: Record<string, LocationConfig> = {
         description: 'Meandering river flowing through Villianur towards the coastal plain with flood retention weirs.',
         centerLat: 11.922,
         centerLng: 79.782,
-        currentRisk: 'Critical',
-        primaryThreat: 'Upstream reservoir discharge causing river stage elevation near Villianur causeway',
-        averageRainfall24hMm: 62.0,
-        maxWaterLevelM: 2.88,
+        currentRisk: 'Low',
+        primaryThreat: 'River stage monitoring and agricultural irrigation weir telemetry',
+        averageRainfall24hMm: 0.0,
+        maxWaterLevelM: 1.20,
         waterLevelThresholdM: 2.80,
-        soilMoisturePercent: 88,
+        soilMoisturePercent: 52,
         internalCoverageRadiusKm: 1.85,
         leafCoverageRadiusKm: 1.35,
-        nodes: createAreaNodes('pud-area-5', 'Villianur-Gingee Basin', 11.922, 79.782, 28.4, 2.88, 88, 22),
+        nodes: createAreaNodes('pud-area-5', 'Villianur-Gingee Basin', 11.922, 79.782, 0.0, 1.20, 52, 16),
       },
       {
         id: 'pud-area-6',
@@ -1251,14 +1272,14 @@ export const LOCATIONS: Record<string, LocationConfig> = {
         centerLat: 11.902,
         centerLng: 79.808,
         currentRisk: 'Low',
-        primaryThreat: 'Tidal surge backflow into Ariyankuppam river basin during full moon spring tides',
-        averageRainfall24hMm: 28.5,
-        maxWaterLevelM: 1.10,
+        primaryThreat: 'Estuarine water exchange and Chunnambar boat house backwater levels',
+        averageRainfall24hMm: 0.0,
+        maxWaterLevelM: 0.95,
         waterLevelThresholdM: 2.20,
-        soilMoisturePercent: 54,
+        soilMoisturePercent: 46,
         internalCoverageRadiusKm: 1.85,
         leafCoverageRadiusKm: 1.35,
-        nodes: createAreaNodes('pud-area-6', 'Ariyankuppam-Chunnambar', 11.902, 79.808, 5.8, 1.10, 54, 18),
+        nodes: createAreaNodes('pud-area-6', 'Ariyankuppam-Chunnambar', 11.902, 79.808, 0.0, 0.95, 46, 15),
       },
     ],
     activeAlerts: [

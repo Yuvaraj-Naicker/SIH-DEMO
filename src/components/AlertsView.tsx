@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { LocationConfig, OperationalAlert, AlertSeverity } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import BorderGlow from './BorderGlow';
 
 interface AlertsViewProps {
   location: LocationConfig;
@@ -46,13 +47,25 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
   return (
     <div className="space-y-6 pb-12">
       {/* Top Banner */}
-      <div
-        className={`rounded-xl border p-5 transition-all ${
-          isDarkMode
-            ? 'bg-slate-900/80 border-slate-800 text-white'
-            : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-        }`}
+      <BorderGlow
+        edgeSensitivity={30}
+        glowColor="40 80 80"
+        backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+        borderRadius={24}
+        glowRadius={40}
+        glowIntensity={1.0}
+        coneSpread={25}
+        animated={false}
+        colors={['#c084fc', '#f472b6', '#38bdf8']}
+        className="w-full"
       >
+        <div
+          className={`rounded-xl border p-5 transition-all ${
+            isDarkMode
+              ? 'bg-slate-900/80 border-slate-800 text-white'
+              : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+          }`}
+        >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -158,23 +171,36 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
           </div>
         </div>
       </div>
+    </BorderGlow>
 
-      {/* Alerts List */}
-      <div className="space-y-4">
-        {filteredAlerts.length === 0 ? (
-          <div
-            className={`rounded-xl border p-8 text-center text-xs opacity-60 ${
-              isDarkMode
-                ? 'bg-slate-900/60 border-slate-800'
-                : 'bg-white border-slate-200'
-            }`}
+    {/* Alerts List */}
+    <div className="space-y-4">
+      {filteredAlerts.length === 0 ? (
+        <div
+          className={`rounded-xl border p-8 text-center text-xs opacity-60 ${
+            isDarkMode
+              ? 'bg-slate-900/60 border-slate-800'
+              : 'bg-white border-slate-200'
+          }`}
+        >
+          No active alerts matching the selected filter criteria.
+        </div>
+      ) : (
+        filteredAlerts.map((alert) => (
+          <BorderGlow
+            key={alert.id}
+            edgeSensitivity={30}
+            glowColor="40 80 80"
+            backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+            borderRadius={20}
+            glowRadius={35}
+            glowIntensity={1.0}
+            coneSpread={25}
+            animated={false}
+            colors={['#c084fc', '#f472b6', '#38bdf8']}
+            className="w-full"
           >
-            No active alerts matching the selected filter criteria.
-          </div>
-        ) : (
-          filteredAlerts.map((alert) => (
             <div
-              key={alert.id}
               className={`rounded-xl border overflow-hidden transition-all ${
                 isDarkMode
                   ? alert.severity === 'critical'
@@ -309,7 +335,8 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
                 </div>
               </div>
             </div>
-          ))
+          </BorderGlow>
+        ))
         )}
       </div>
     </div>

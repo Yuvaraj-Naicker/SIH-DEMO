@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { LocationConfig, MonitoredArea, SensorNode } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import BorderGlow from './BorderGlow';
 
 interface LiveMonitoringViewProps {
   location: LocationConfig;
@@ -48,13 +49,25 @@ export const LiveMonitoringView: React.FC<LiveMonitoringViewProps> = ({
   return (
     <div className="space-y-6 pb-12">
       {/* Top Banner */}
-      <div
-        className={`rounded-xl border p-5 transition-all ${
-          isDarkMode
-            ? 'bg-slate-900/80 border-slate-800 text-white'
-            : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-        }`}
+      <BorderGlow
+        edgeSensitivity={30}
+        glowColor="40 80 80"
+        backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+        borderRadius={24}
+        glowRadius={40}
+        glowIntensity={1.0}
+        coneSpread={25}
+        animated={false}
+        colors={['#c084fc', '#f472b6', '#38bdf8']}
+        className="w-full"
       >
+        <div
+          className={`rounded-xl border p-5 transition-all ${
+            isDarkMode
+              ? 'bg-slate-900/80 border-slate-800 text-white'
+              : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+          }`}
+        >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -166,22 +179,35 @@ export const LiveMonitoringView: React.FC<LiveMonitoringViewProps> = ({
           </div>
         </div>
       </div>
+    </BorderGlow>
 
-      {/* Monitored Area Stations */}
-      <div className="space-y-6">
-        {filteredAreas.map((area) => {
-          const areaNodes = area.nodes.filter((n) => {
-            if (filterType !== 'all' && n.type !== filterType) return false;
-            if (searchTerm) {
-              const term = searchTerm.toLowerCase();
-              return n.name.toLowerCase().includes(term) || n.code.toLowerCase().includes(term);
-            }
-            return true;
-          });
+    {/* Monitored Area Stations */}
+    <div className="space-y-6">
+      {filteredAreas.map((area) => {
+        const areaNodes = area.nodes.filter((n) => {
+          if (filterType !== 'all' && n.type !== filterType) return false;
+          if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            return n.name.toLowerCase().includes(term) || n.code.toLowerCase().includes(term);
+          }
+          return true;
+        });
 
-          return (
+        return (
+          <BorderGlow
+            key={area.id}
+            edgeSensitivity={30}
+            glowColor="40 80 80"
+            backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+            borderRadius={24}
+            glowRadius={40}
+            glowIntensity={1.0}
+            coneSpread={25}
+            animated={false}
+            colors={['#c084fc', '#f472b6', '#38bdf8']}
+            className="w-full"
+          >
             <div
-              key={area.id}
               className={`rounded-xl border overflow-hidden transition-all ${
                 isDarkMode
                   ? 'bg-slate-900/80 border-slate-800 text-white'
@@ -390,8 +416,9 @@ export const LiveMonitoringView: React.FC<LiveMonitoringViewProps> = ({
                 </div>
               </div>
             </div>
-          );
-        })}
+          </BorderGlow>
+        );
+      })}
       </div>
     </div>
   );

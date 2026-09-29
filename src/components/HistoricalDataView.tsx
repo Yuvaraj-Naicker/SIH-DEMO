@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { LocationConfig } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import BorderGlow from './BorderGlow';
 
 interface HistoricalDataViewProps {
   location: LocationConfig;
@@ -83,58 +84,83 @@ export const HistoricalDataView: React.FC<HistoricalDataViewProps> = ({
   return (
     <div className="space-y-6 pb-12">
       {/* Historical Data Header */}
-      <div
-        className={`rounded-xl border p-5 transition-all ${
-          isDarkMode
-            ? 'bg-slate-900/80 border-slate-800 text-white'
-            : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-        }`}
+      <BorderGlow
+        edgeSensitivity={30}
+        glowColor="40 80 80"
+        backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+        borderRadius={24}
+        glowRadius={40}
+        glowIntensity={1.0}
+        coneSpread={25}
+        animated={false}
+        colors={['#c084fc', '#f472b6', '#38bdf8']}
+        className="w-full"
       >
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <History className={`w-4 h-4 ${isDarkMode ? 'text-cyan-400' : 'text-teal-700'}`} />
-              <h2 className="text-base font-bold">
-                Historical Environmental Archive — {location.name}
-              </h2>
+        <div
+          className={`rounded-xl border p-5 transition-all ${
+            isDarkMode
+              ? 'bg-slate-900/80 border-slate-800 text-white'
+              : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+          }`}
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <History className={`w-4 h-4 ${isDarkMode ? 'text-cyan-400' : 'text-teal-700'}`} />
+                <h2 className="text-base font-bold">
+                  Historical Environmental Archive — {location.name}
+                </h2>
+              </div>
+              <p className="text-xs opacity-70 mt-1 max-w-3xl">
+                Multi-year hydrometric sensor logs, seasonal precipitation records, inundation frequencies, and SDRF alert logs.
+              </p>
             </div>
-            <p className="text-xs opacity-70 mt-1 max-w-3xl">
-              Multi-year hydrometric sensor logs, seasonal precipitation records, inundation frequencies, and SDRF alert logs.
-            </p>
-          </div>
 
-          {/* Export action button */}
-          <button
-            onClick={handleExportData}
-            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all shadow-md ${
-              isDarkMode
-                ? 'bg-cyan-400 hover:bg-cyan-300 text-slate-950 shadow-cyan-500/20'
-                : 'bg-teal-700 hover:bg-teal-800 text-white shadow-teal-700/20'
-            }`}
-          >
-            {downloadSuccess ? (
-              <>
-                <CheckCircle2 className="w-4 h-4 text-emerald-900" />
-                <span>Exported (CSV + JSON)</span>
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4" />
-                <span>Export Archive Data</span>
-              </>
-            )}
-          </button>
+            {/* Export action button */}
+            <button
+              onClick={handleExportData}
+              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all shadow-md ${
+                isDarkMode
+                  ? 'bg-cyan-400 hover:bg-cyan-300 text-slate-950 shadow-cyan-500/20'
+                  : 'bg-teal-700 hover:bg-teal-800 text-white shadow-teal-700/20'
+              }`}
+            >
+              {downloadSuccess ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-900" />
+                  <span>Exported (CSV + JSON)</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  <span>Export Archive Data</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
-      </div>
+      </BorderGlow>
 
       {/* Seasonal Incident Ledger */}
-      <div
-        className={`rounded-xl border overflow-hidden transition-all ${
-          isDarkMode
-            ? 'bg-slate-900/80 border-slate-800 text-white'
-            : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-        }`}
+      <BorderGlow
+        edgeSensitivity={30}
+        glowColor="40 80 80"
+        backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+        borderRadius={24}
+        glowRadius={40}
+        glowIntensity={1.0}
+        coneSpread={25}
+        animated={false}
+        colors={['#c084fc', '#f472b6', '#38bdf8']}
+        className="w-full"
       >
+        <div
+          className={`rounded-xl border overflow-hidden transition-all ${
+            isDarkMode
+              ? 'bg-slate-900/80 border-slate-800 text-white'
+              : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+          }`}
+        >
         <div
           className={`px-5 py-3.5 border-b flex items-center justify-between ${
             isDarkMode ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
@@ -212,6 +238,7 @@ export const HistoricalDataView: React.FC<HistoricalDataViewProps> = ({
           </table>
         </div>
       </div>
+      </BorderGlow>
     </div>
   );
 };

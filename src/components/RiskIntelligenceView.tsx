@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { LocationConfig, RiskCategory } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import BorderGlow from './BorderGlow';
 
 interface RiskIntelligenceViewProps {
   location: LocationConfig;
@@ -62,127 +63,173 @@ export const RiskIntelligenceView: React.FC<RiskIntelligenceViewProps> = ({
   return (
     <div className="space-y-6 pb-12">
       {/* Overview Banner */}
-      <div
-        className={`rounded-xl border p-5 transition-all ${
-          isDarkMode
-            ? 'bg-slate-900/80 border-slate-800 text-white'
-            : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-        }`}
+      <BorderGlow
+        edgeSensitivity={30}
+        glowColor="40 80 80"
+        backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+        borderRadius={24}
+        glowRadius={40}
+        glowIntensity={1.0}
+        coneSpread={25}
+        animated={false}
+        colors={['#c084fc', '#f472b6', '#38bdf8']}
+        className="w-full"
       >
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-amber-400" />
-              <h2 className="text-base font-bold">
-                Environmental Risk Intelligence — {location.name}
-              </h2>
+        <div
+          className={`rounded-xl border p-5 transition-all ${
+            isDarkMode
+              ? 'bg-slate-900/80 border-slate-800 text-white'
+              : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+          }`}
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-400" />
+                <h2 className="text-base font-bold">
+                  Environmental Risk Intelligence — {location.name}
+                </h2>
+              </div>
+              <p className="text-xs opacity-70 mt-1 max-w-3xl">
+                Composite multi-variable hazard indices calculated from hydrometeorological sensor feeds, topographic models, tidal tables, and watershed saturation rates.
+              </p>
             </div>
-            <p className="text-xs opacity-70 mt-1 max-w-3xl">
-              Composite multi-variable hazard indices calculated from hydrometeorological sensor feeds, topographic models, tidal tables, and watershed saturation rates.
-            </p>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <div
-              className={`px-3.5 py-2 rounded-lg border text-right ${
-                isDarkMode
-                  ? 'bg-slate-950 border-slate-800 text-white'
-                  : 'bg-slate-50 border-slate-200 text-slate-900'
-              }`}
-            >
-              <div className="text-[11px] opacity-60 font-medium">Composite Hazard Index</div>
-              <div className="flex items-baseline justify-end gap-1.5 font-mono">
-                <span className="text-xl font-bold">
-                  {location.liveMetrics.compositeRiskIndex}
-                </span>
-                <span className="text-xs opacity-60">/100</span>
-                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ml-1 ${getLevelBadge(location.liveMetrics.compositeRiskLevel)}`}>
-                  {location.liveMetrics.compositeRiskLevel}
-                </span>
+            <div className="flex items-center gap-3">
+              <div
+                className={`px-3.5 py-2 rounded-lg border text-right ${
+                  isDarkMode
+                    ? 'bg-slate-950 border-slate-800 text-white'
+                    : 'bg-slate-50 border-slate-200 text-slate-900'
+                }`}
+              >
+                <div className="text-[11px] opacity-60 font-medium">Composite Hazard Index</div>
+                <div className="flex items-baseline justify-end gap-1.5 font-mono">
+                  <span className="text-xl font-bold">
+                    {location.liveMetrics.compositeRiskIndex}
+                  </span>
+                  <span className="text-xs opacity-60">/100</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ml-1 ${getLevelBadge(location.liveMetrics.compositeRiskLevel)}`}>
+                    {location.liveMetrics.compositeRiskLevel}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </BorderGlow>
 
       {/* Main Risk Matrix & Detailed Inspector */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left Column (5 cols): Risk Categories List */}
-        <div className="lg:col-span-5 space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider opacity-60 px-1">
-            Hazard Domains ({location.riskCategories.length})
-          </h3>
+        <div className="lg:col-span-5">
+          <BorderGlow
+            edgeSensitivity={30}
+            glowColor="40 80 80"
+            backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+            borderRadius={24}
+            glowRadius={40}
+            glowIntensity={1.0}
+            coneSpread={25}
+            animated={false}
+            colors={['#c084fc', '#f472b6', '#38bdf8']}
+            className="w-full"
+          >
+            <div
+              className={`rounded-xl border p-4 space-y-3 transition-all ${
+                isDarkMode
+                  ? 'bg-slate-900/80 border-slate-800 text-white'
+                  : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+              }`}
+            >
+              <h3 className="text-xs font-bold uppercase tracking-wider opacity-60 px-1">
+                Hazard Domains ({location.riskCategories.length})
+              </h3>
 
-          <div className="space-y-2">
-            {location.riskCategories.map((cat) => {
-              const isSelected = selectedCategory.id === cat.id;
+              <div className="space-y-2">
+                {location.riskCategories.map((cat) => {
+                  const isSelected = selectedCategory.id === cat.id;
 
-              return (
-                <div
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                    isSelected
-                      ? isDarkMode
-                        ? 'bg-slate-900 border-cyan-500 shadow-md shadow-cyan-950/40 ring-1 ring-cyan-500'
-                        : 'bg-white border-teal-600 shadow-xs ring-1 ring-teal-600'
-                      : isDarkMode
-                      ? 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-                      : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-bold text-sm">{cat.name}</h4>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded border ${getLevelBadge(cat.level)}`}>
-                        {cat.level}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div
-                    className={`w-full rounded-full h-2 overflow-hidden mb-2 ${
-                      isDarkMode ? 'bg-slate-800' : 'bg-slate-100'
-                    }`}
-                  >
+                  return (
                     <div
-                      className={`h-full rounded-full ${
-                        cat.level === 'Critical'
-                          ? 'bg-red-500'
-                          : cat.level === 'High'
-                          ? 'bg-amber-400'
-                          : 'bg-emerald-400'
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                        isSelected
+                          ? isDarkMode
+                            ? 'bg-slate-900 border-cyan-500 shadow-md shadow-cyan-950/40 ring-1 ring-cyan-500'
+                            : 'bg-white border-teal-600 shadow-xs ring-1 ring-teal-600'
+                          : isDarkMode
+                          ? 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                          : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
                       }`}
-                      style={{ width: `${cat.score}%` }}
-                    />
-                  </div>
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-bold text-sm">{cat.name}</h4>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded border ${getLevelBadge(cat.level)}`}>
+                            {cat.level}
+                          </span>
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between text-xs opacity-70">
-                    <span className="font-mono">
-                      Score: <strong className="opacity-100">{cat.score}/100</strong>
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <span>Trend:</span>
-                      {getTrendIcon(cat.trend)}
-                      <span className="capitalize font-medium opacity-90">{cat.trend}</span>
+                      {/* Progress bar */}
+                      <div
+                        className={`w-full rounded-full h-2 overflow-hidden mb-2 ${
+                          isDarkMode ? 'bg-slate-800' : 'bg-slate-100'
+                        }`}
+                      >
+                        <div
+                          className={`h-full rounded-full ${
+                            cat.level === 'Critical'
+                              ? 'bg-red-500'
+                              : cat.level === 'High'
+                              ? 'bg-amber-400'
+                              : 'bg-emerald-400'
+                          }`}
+                          style={{ width: `${cat.score}%` }}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs opacity-70">
+                        <span className="font-mono">
+                          Score: <strong className="opacity-100">{cat.score}/100</strong>
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <span>Trend:</span>
+                          {getTrendIcon(cat.trend)}
+                          <span className="capitalize font-medium opacity-90">{cat.trend}</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            </div>
+          </BorderGlow>
         </div>
 
         {/* Right Column (7 cols): Selected Hazard Detail & Operational Thresholds */}
         <div className="lg:col-span-7 space-y-4">
-          <div
-            className={`rounded-xl border p-5 transition-all ${
-              isDarkMode
-                ? 'bg-slate-900/80 border-slate-800 text-white'
-                : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-            }`}
+          <BorderGlow
+            edgeSensitivity={30}
+            glowColor="40 80 80"
+            backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+            borderRadius={24}
+            glowRadius={40}
+            glowIntensity={1.0}
+            coneSpread={25}
+            animated={false}
+            colors={['#c084fc', '#f472b6', '#38bdf8']}
+            className="w-full"
           >
+            <div
+              className={`rounded-xl border p-5 transition-all ${
+                isDarkMode
+                  ? 'bg-slate-900/80 border-slate-800 text-white'
+                  : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+              }`}
+            >
             <div className="flex items-start justify-between gap-3 border-b border-current/10 pb-4 mb-4">
               <div>
                 <span className="text-[11px] font-mono uppercase opacity-50">
@@ -293,7 +340,8 @@ export const RiskIntelligenceView: React.FC<RiskIntelligenceViewProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        </BorderGlow>
+      </div>
       </div>
     </div>
   );

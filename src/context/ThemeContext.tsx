@@ -15,12 +15,12 @@ const ThemeContext = createContext<ThemeContextType>({
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Default to Dark Mode as shown in the user's template screenshots
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('terrawatch-theme');
+    const saved = localStorage.getItem('envora-theme') || localStorage.getItem('terrawatch-theme');
     return saved ? saved === 'dark' : true;
   });
 
   useEffect(() => {
-    localStorage.setItem('terrawatch-theme', isDarkMode ? 'dark' : 'light');
+    localStorage.setItem('envora-theme', isDarkMode ? 'dark' : 'light');
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {

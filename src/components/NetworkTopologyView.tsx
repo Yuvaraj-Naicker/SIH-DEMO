@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { LocationConfig, MonitoredArea, SensorNode } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import BorderGlow from './BorderGlow';
 
 interface NetworkTopologyViewProps {
   location: LocationConfig;
@@ -41,129 +42,167 @@ export const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
   return (
     <div className="space-y-6 pb-12">
       {/* Topology Header */}
-      <div
-        className={`rounded-xl border p-5 transition-all ${
-          isDarkMode
-            ? 'bg-slate-900/80 border-slate-800 text-white'
-            : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-        }`}
+      <BorderGlow
+        edgeSensitivity={30}
+        glowColor="40 80 80"
+        backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+        borderRadius={24}
+        glowRadius={40}
+        glowIntensity={1.0}
+        coneSpread={25}
+        animated={false}
+        colors={['#c084fc', '#f472b6', '#38bdf8']}
+        className="w-full"
       >
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <Network className={`w-4 h-4 ${isDarkMode ? 'text-cyan-400' : 'text-teal-700'}`} />
-              <h2 className="text-base font-bold">
-                Sensor Network Topology — {location.name}
-              </h2>
+        <div
+          className={`rounded-xl border p-5 transition-all ${
+            isDarkMode
+              ? 'bg-slate-900/80 border-slate-800 text-white'
+              : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+          }`}
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Network className={`w-4 h-4 ${isDarkMode ? 'text-cyan-400' : 'text-teal-700'}`} />
+                <h2 className="text-base font-bold">
+                  Sensor Network Topology — {location.name}
+                </h2>
+              </div>
+              <p className="text-xs opacity-70 mt-1 max-w-3xl">
+                LoRaWAN 865-867 MHz multi-hop mesh structure per monitored area. Displays 1 Central Internal Gateway Router (IN) and 4 Field Sensor Leaf Nodes (LN) with overlapping ~1km range radii and hopping routing tables.
+              </p>
             </div>
-            <p className="text-xs opacity-70 mt-1 max-w-3xl">
-              LoRaWAN 865-867 MHz multi-hop mesh structure per monitored area. Displays 1 Central Internal Gateway Router (IN) and 4 Field Sensor Leaf Nodes (LN) with overlapping ~1km range radii and hopping routing tables.
-            </p>
-          </div>
 
-          {/* Area Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold opacity-75">Select Zone Topology:</span>
-            <select
-              value={selectedAreaId}
-              onChange={(e) => setSelectedAreaId(e.target.value)}
-              className={`px-3 py-1.5 rounded-md border text-xs font-semibold focus:ring-1 focus:ring-cyan-500 ${
-                isDarkMode
-                  ? 'bg-slate-950 text-white border-slate-700'
-                  : 'bg-white text-slate-800 border-slate-300 shadow-2xs'
-              }`}
-            >
-              {location.monitoredAreas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.name} ({area.nodes.length} Nodes)
-                </option>
-              ))}
-            </select>
+            {/* Area Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold opacity-75">Select Zone Topology:</span>
+              <select
+                value={selectedAreaId}
+                onChange={(e) => setSelectedAreaId(e.target.value)}
+                className={`px-3 py-1.5 rounded-md border text-xs font-semibold focus:ring-1 focus:ring-cyan-500 ${
+                  isDarkMode
+                    ? 'bg-slate-950 text-white border-slate-700'
+                    : 'bg-white text-slate-800 border-slate-300 shadow-2xs'
+                }`}
+              >
+                {location.monitoredAreas.map((area) => (
+                  <option key={area.id} value={area.id}>
+                    {area.name} ({area.nodes.length} Nodes)
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
-      </div>
+      </BorderGlow>
 
       {/* Network Health Metrics Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div
-          className={`rounded-xl border p-3.5 transition-all ${
-            isDarkMode
-              ? 'bg-slate-900/80 border-slate-800 text-white'
-              : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-          }`}
-        >
-          <div className="flex items-center justify-between text-xs opacity-60 mb-1">
-            <span>Area Topology Structure</span>
-            <Server className={`w-4 h-4 ${isDarkMode ? 'text-cyan-400' : 'text-teal-700'}`} />
+      <BorderGlow
+        edgeSensitivity={30}
+        glowColor="40 80 80"
+        backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+        borderRadius={24}
+        glowRadius={40}
+        glowIntensity={1.0}
+        coneSpread={25}
+        animated={false}
+        colors={['#c084fc', '#f472b6', '#38bdf8']}
+        className="w-full"
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3">
+          <div
+            className={`rounded-xl border p-3.5 transition-all ${
+              isDarkMode
+                ? 'bg-slate-900/80 border-slate-800 text-white'
+                : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs opacity-60 mb-1">
+              <span>Area Topology Structure</span>
+              <Server className={`w-4 h-4 ${isDarkMode ? 'text-cyan-400' : 'text-teal-700'}`} />
+            </div>
+            <div className="text-lg font-bold font-mono">
+              {internalNodes.length} Internal + {leafNodes.length} Leaf
+            </div>
+            <div className="text-[11px] opacity-60 mt-1">
+              {currentArea.nodes.length} Dedicated Nodes / Zone
+            </div>
           </div>
-          <div className="text-lg font-bold font-mono">
-            {internalNodes.length} Internal + {leafNodes.length} Leaf
-          </div>
-          <div className="text-[11px] opacity-60 mt-1">
-            {currentArea.nodes.length} Dedicated Nodes / Zone
-          </div>
-        </div>
 
-        <div
-          className={`rounded-xl border p-3.5 transition-all ${
-            isDarkMode
-              ? 'bg-slate-900/80 border-slate-800 text-white'
-              : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-          }`}
-        >
-          <div className="flex items-center justify-between text-xs opacity-60 mb-1">
-            <span>Packet Delivery (PDR)</span>
-            <Activity className="w-4 h-4 text-teal-400" />
+          <div
+            className={`rounded-xl border p-3.5 transition-all ${
+              isDarkMode
+                ? 'bg-slate-900/80 border-slate-800 text-white'
+                : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs opacity-60 mb-1">
+              <span>Packet Delivery (PDR)</span>
+              <Activity className="w-4 h-4 text-teal-400" />
+            </div>
+            <div className="text-lg font-bold text-teal-400 font-mono">
+              {location.analyticsData.packetDeliveryRatioPercent}%
+            </div>
+            <div className="text-[11px] opacity-60 mt-1">LoRa SF7 Adaptive Rate</div>
           </div>
-          <div className="text-lg font-bold text-teal-400 font-mono">
-            {location.analyticsData.packetDeliveryRatioPercent}%
-          </div>
-          <div className="text-[11px] opacity-60 mt-1">LoRa SF7 Adaptive Rate</div>
-        </div>
 
-        <div
-          className={`rounded-xl border p-3.5 transition-all ${
-            isDarkMode
-              ? 'bg-slate-900/80 border-slate-800 text-white'
-              : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-          }`}
-        >
-          <div className="flex items-center justify-between text-xs opacity-60 mb-1">
-            <span>Coverage Radius / Node</span>
-            <Radio className="w-4 h-4 text-amber-400" />
+          <div
+            className={`rounded-xl border p-3.5 transition-all ${
+              isDarkMode
+                ? 'bg-slate-900/80 border-slate-800 text-white'
+                : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs opacity-60 mb-1">
+              <span>Coverage Radius / Node</span>
+              <Radio className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="text-lg font-bold font-mono">
+              ~1.0 km Overlapping
+            </div>
+            <div className="text-[11px] opacity-60 mt-1">Zero Blindspots Assured</div>
           </div>
-          <div className="text-lg font-bold font-mono">
-            ~1.0 km Overlapping
-          </div>
-          <div className="text-[11px] opacity-60 mt-1">Zero Blindspots Assured</div>
-        </div>
 
-        <div
-          className={`rounded-xl border p-3.5 transition-all ${
-            isDarkMode
-              ? 'bg-slate-900/80 border-slate-800 text-white'
-              : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-          }`}
-        >
-          <div className="flex items-center justify-between text-xs opacity-60 mb-1">
-            <span>Gateway Backhaul</span>
-            <Wifi className="w-4 h-4 text-emerald-400" />
+          <div
+            className={`rounded-xl border p-3.5 transition-all ${
+              isDarkMode
+                ? 'bg-slate-900/80 border-slate-800 text-white'
+                : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+            }`}
+          >
+            <div className="flex items-center justify-between text-xs opacity-60 mb-1">
+              <span>Gateway Backhaul</span>
+              <Wifi className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div className="text-lg font-bold text-emerald-400 font-mono">
+              Active 4G / NB-IoT
+            </div>
+            <div className="text-[11px] opacity-60 mt-1">Direct Cloud Ingress</div>
           </div>
-          <div className="text-lg font-bold text-emerald-400 font-mono">
-            Active 4G / NB-IoT
-          </div>
-          <div className="text-[11px] opacity-60 mt-1">Direct Cloud Ingress</div>
         </div>
-      </div>
+      </BorderGlow>
 
       {/* Visual Mesh Architecture Diagram */}
-      <div
-        className={`rounded-xl border p-5 transition-all ${
-          isDarkMode
-            ? 'bg-slate-900/80 border-slate-800 text-white'
-            : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-        }`}
+      <BorderGlow
+        edgeSensitivity={30}
+        glowColor="40 80 80"
+        backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+        borderRadius={24}
+        glowRadius={40}
+        glowIntensity={1.0}
+        coneSpread={25}
+        animated={false}
+        colors={['#c084fc', '#f472b6', '#38bdf8']}
+        className="w-full"
       >
+        <div
+          className={`rounded-xl border p-5 transition-all ${
+            isDarkMode
+              ? 'bg-slate-900/80 border-slate-800 text-white'
+              : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+          }`}
+        >
         <div className="flex items-center justify-between mb-4 border-b border-current/10 pb-3">
           <div>
             <h3 className="font-bold text-sm">
@@ -398,6 +437,7 @@ export const NetworkTopologyView: React.FC<NetworkTopologyViewProps> = ({
           </table>
         </div>
       </div>
-    </div>
+    </BorderGlow>
+  </div>
   );
 };

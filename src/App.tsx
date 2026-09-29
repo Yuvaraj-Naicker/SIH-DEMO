@@ -11,14 +11,16 @@ import { NetworkTopologyView } from './components/NetworkTopologyView';
 import { AlertsView } from './components/AlertsView';
 import { AnalyticsView } from './components/AnalyticsView';
 import { HistoricalDataView } from './components/HistoricalDataView';
+import { PCBView } from './components/PCBView';
 import { NodeInspectorModal } from './components/NodeInspectorModal';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { FullPageAtmosphereVideo } from './components/FullPageAtmosphereVideo';
 
 function DashboardContent() {
   const { isDarkMode } = useTheme();
 
   // State
-  const [currentLocationId, setCurrentLocationId] = useState<LocationId>('mumbai');
+  const [currentLocationId, setCurrentLocationId] = useState<LocationId>('puducherry');
   const [activeTab, setActiveTab] = useState<NavTabId>('overview');
   const [selectedNode, setSelectedNode] = useState<SensorNode | null>(null);
   const [locationsData, setLocationsData] = useState<Record<string, LocationConfig>>(LOCATIONS);
@@ -99,6 +101,49 @@ function DashboardContent() {
     });
   };
 
+  // Toggle node status (Online <-> Offline) to simulate real-world node outages
+  const handleToggleNodeStatus = (nodeId: string) => {
+    setLocationsData((prev) => {
+      const loc = prev[currentLocationId];
+      if (!loc) return prev;
+      const updatedAreas = loc.monitoredAreas.map((area) => ({
+        ...area,
+        nodes: area.nodes.map((n) => {
+          if (n.id === nodeId) {
+            const newStatus = n.status === 'offline' ? 'online' : 'offline';
+            return {
+              ...n,
+              status: newStatus,
+              lastPingSecAgo: newStatus === 'offline' ? 3600 : 2,
+            };
+          }
+          return n;
+        }),
+      }));
+
+      return {
+        ...prev,
+        [currentLocationId]: {
+          ...loc,
+          monitoredAreas: updatedAreas,
+        },
+      };
+    });
+
+    // Update selectedNode if currently open
+    setSelectedNode((prev) => {
+      if (prev && prev.id === nodeId) {
+        const newStatus = prev.status === 'offline' ? 'online' : 'offline';
+        return {
+          ...prev,
+          status: newStatus,
+          lastPingSecAgo: newStatus === 'offline' ? 3600 : 2,
+        };
+      }
+      return prev;
+    });
+  };
+
   // Find area for selected node
   const selectedNodeArea = selectedNode
     ? currentLocation.monitoredAreas.find((a) => a.id === selectedNode.areaId)
@@ -106,13 +151,14 @@ function DashboardContent() {
 
   return (
     <div
-      className={`min-h-screen flex flex-col font-sans transition-colors duration-200 antialiased ${
-        isDarkMode
-          ? 'bg-[#070c18] text-slate-100'
-          : 'bg-gradient-to-b from-[#dbe5f0] via-[#e2e8f1] to-[#dce5f0] text-slate-900'
+      className={`relative min-h-screen flex flex-col font-sans transition-colors duration-200 antialiased ${
+        isDarkMode ? 'bg-black text-slate-100' : 'text-slate-900'
       }`}
     >
-      {/* Unified Navigation Header matching User's Template Screenshot */}
+      {/* Full Page Background Video without gray shade */}
+      <FullPageAtmosphereVideo location={currentLocation} isDarkMode={isDarkMode} />
+
+      {/* Unified Navigation Header */}
       <Header
         currentLocation={currentLocation}
         onSelectLocation={(id) => setCurrentLocationId(id)}
@@ -150,6 +196,7 @@ function DashboardContent() {
             location={currentLocation}
             onSelectNode={(node) => setSelectedNode(node)}
             onSelectLocation={(id) => setCurrentLocationId(id)}
+            onToggleNodeStatus={handleToggleNodeStatus}
           />
         )}
 
@@ -174,6 +221,10 @@ function DashboardContent() {
         {activeTab === 'history' && (
           <HistoricalDataView location={currentLocation} />
         )}
+
+        {activeTab === 'pcb' && (
+          <PCBView location={currentLocation} />
+        )}
       </main>
 
       {/* Technical Node Inspector Modal (Opens on node click anywhere) */}
@@ -181,6 +232,7 @@ function DashboardContent() {
         node={selectedNode}
         area={selectedNodeArea}
         onClose={() => setSelectedNode(null)}
+        onToggleNodeStatus={handleToggleNodeStatus}
       />
 
       {/* Professional Status Bar Footer */}
@@ -193,7 +245,7 @@ function DashboardContent() {
       >
         <div className="max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-mono text-[11px]">
-            <span className={`font-semibold ${isDarkMode ? 'text-cyan-400' : 'text-teal-700'}`}>TerraWatch Environmental Mesh</span>
+            <span className={`font-semibold ${isDarkMode ? 'text-cyan-400' : 'text-teal-700'}`}>ENVORA Environmental Mesh</span>
             <span>•</span>
             <span>LoRaWAN IN865 Multi-Hop Scheme</span>
             <span>•</span>

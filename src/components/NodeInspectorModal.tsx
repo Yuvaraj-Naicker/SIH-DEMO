@@ -15,6 +15,9 @@ import {
   ArrowRight,
   ShieldCheck,
   CheckCircle2,
+  AlertOctagon,
+  PowerOff,
+  Power,
 } from 'lucide-react';
 import { SensorNode, MonitoredArea } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -23,17 +26,20 @@ interface NodeInspectorModalProps {
   node: SensorNode | null;
   area?: MonitoredArea;
   onClose: () => void;
+  onToggleNodeStatus?: (nodeId: string) => void;
 }
 
 export const NodeInspectorModal: React.FC<NodeInspectorModalProps> = ({
   node,
   area,
   onClose,
+  onToggleNodeStatus,
 }) => {
   const { isDarkMode } = useTheme();
   if (!node) return null;
 
   const isInternal = node.type === 'internal';
+  const isOffline = node.status === 'offline';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
@@ -87,7 +93,9 @@ export const NodeInspectorModal: React.FC<NodeInspectorModalProps> = ({
           {/* Status & Area Strip */}
           <div
             className={`flex items-center justify-between p-2.5 rounded-lg border ${
-              isDarkMode
+              isOffline
+                ? 'bg-red-950/40 border-red-800 text-red-200'
+                : isDarkMode
                 ? 'bg-slate-950/70 border-slate-800'
                 : 'bg-slate-50 border-slate-200'
             }`}
@@ -96,9 +104,18 @@ export const NodeInspectorModal: React.FC<NodeInspectorModalProps> = ({
               <span className="opacity-60 font-medium">Monitored Zone: </span>
               <span className="font-bold">{area?.name || node.areaId}</span>
             </div>
-            <div className="flex items-center gap-1.5 font-medium text-emerald-400">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Operational (Ping {node.lastPingSecAgo}s ago)</span>
+            <div className={`flex items-center gap-1.5 font-medium ${isOffline ? 'text-red-400 font-bold' : 'text-emerald-400'}`}>
+              {isOffline ? (
+                <>
+                  <AlertOctagon className="w-3.5 h-3.5 animate-pulse text-red-400" />
+                  <span>OFFLINE (Simulation Mode)</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Operational (Ping {node.lastPingSecAgo}s ago)</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -308,10 +325,36 @@ export const NodeInspectorModal: React.FC<NodeInspectorModalProps> = ({
 
         {/* Modal Footer */}
         <div
-          className={`px-5 py-3 border-t flex items-center justify-end ${
+          className={`px-5 py-3 border-t flex items-center justify-between gap-3 ${
             isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
           }`}
         >
+          {onToggleNodeStatus ? (
+            <button
+              onClick={() => onToggleNodeStatus(node.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                isOffline
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                  : 'bg-red-950 hover:bg-red-900 text-red-300 border-red-800 shadow-sm hover:border-red-600'
+              }`}
+              title={isOffline ? 'Bring this node back online' : 'Simulate node outage by setting it offline'}
+            >
+              {isOffline ? (
+                <>
+                  <Power className="w-3.5 h-3.5 text-emerald-300" />
+                  <span>Bring Online</span>
+                </>
+              ) : (
+                <>
+                  <PowerOff className="w-3.5 h-3.5 text-red-400" />
+                  <span>Make It Offline</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <div />
+          )}
+
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-bold transition-colors shadow-xs"

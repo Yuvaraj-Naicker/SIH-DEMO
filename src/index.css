@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Pure black dark mode theme for the whole website */
+html.dark,
+html.dark body {
+  background-color: #000000 !important;
+  color: #f8fafc;
+}
+
 /* Leaflet Custom Marker Resets */
 .leaflet-div-icon.custom-node-marker,
 .leaflet-div-icon.packet-pulse-marker {
@@ -7,56 +14,43 @@
   border: none !important;
 }
 
+/* Leaflet Custom Node Popup Styling */
+.custom-leaflet-node-popup .leaflet-popup-content-wrapper {
+  background: #020617 !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6) !important;
+}
+.custom-leaflet-node-popup .leaflet-popup-content {
+  margin: 0 !important;
+  line-height: inherit !important;
+}
+.custom-leaflet-node-popup .leaflet-popup-tip {
+  background: #020617 !important;
+  border: 1px solid #334155 !important;
+}
+.custom-leaflet-node-popup .leaflet-popup-close-button {
+  color: #94a3b8 !important;
+  padding: 6px !important;
+}
+.custom-leaflet-node-popup .leaflet-popup-close-button:hover {
+  color: #f8fafc !important;
+}
 
-/* TerraWatch Overview — Antigravity-style scroll presentation */
+/* ENVORA Overview — Smooth natural page scroll */
 .tw-overview-shell {
   position: relative;
+  width: 100%;
 }
 
 .tw-overview-region {
   position: sticky;
-  top: 0;
+  top: 7rem;
   z-index: 30;
-  margin-bottom: 12px;
-}
-
-.tw-overview-stage {
-  height: calc(100vh - 9.5rem);
-  min-height: 560px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scroll-snap-type: y mandatory;
-  scroll-behavior: smooth;
-  overscroll-behavior-y: contain;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  padding-right: 0;
-}
-
-.tw-overview-snap {
-  min-height: 100%;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding-top: 28px;
-  padding-bottom: 28px;
-  box-sizing: border-box;
-}
-
-.tw-overview-hero {
-  min-height: 100%;
-}
-
-.tw-overview-stage::-webkit-scrollbar {
-  display: none;
-}
-
-.tw-overview-about > div:first-child,
-.tw-overview-faq {
-  max-height: none;
-  overflow: visible;
+  margin-bottom: 16px;
+  backdrop-filter: blur(12px);
 }
 
 .tw-overview-metrics {
@@ -78,38 +72,25 @@
   }
 }
 
-.tw-overview-map {
-  min-height: 100%;
+/* Custom subtle scrollbar for horizontal dashboard nav row */
+.nav-scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
 }
 
-.tw-overview-about > div,
-.tw-overview-platform > div,
-.tw-overview-faq {
-  width: 100%;
-  box-sizing: border-box;
+.nav-scroll-container::-webkit-scrollbar {
+  height: 4px;
 }
 
-.tw-overview-platform > div {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+.nav-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-@media (max-width: 768px) {
-  .tw-overview-stage {
-    height: calc(100vh - 11rem);
-    min-height: 500px;
-  }
-
-  .tw-overview-snap {
-    padding-top: 20px;
-    padding-bottom: 20px;
-  }
+.nav-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .tw-overview-stage {
-    scroll-behavior: auto;
-    scroll-snap-type: none;
-  }
+.nav-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
 }

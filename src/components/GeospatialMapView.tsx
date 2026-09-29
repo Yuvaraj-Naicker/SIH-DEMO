@@ -13,17 +13,20 @@ import {
 import { LocationConfig, SensorNode, LocationId } from '../types';
 import { GeospatialLeafletMap, getZoneMeta } from './GeospatialLeafletMap';
 import { useTheme } from '../context/ThemeContext';
+import BorderGlow from './BorderGlow';
 
 interface GeospatialMapViewProps {
   location: LocationConfig;
   onSelectNode: (node: SensorNode) => void;
   onSelectLocation?: (locationId: LocationId) => void;
+  onToggleNodeStatus?: (nodeId: string) => void;
 }
 
 export const GeospatialMapView: React.FC<GeospatialMapViewProps> = ({
   location,
   onSelectNode,
   onSelectLocation,
+  onToggleNodeStatus,
 }) => {
   const { isDarkMode } = useTheme();
 
@@ -34,15 +37,41 @@ export const GeospatialMapView: React.FC<GeospatialMapViewProps> = ({
   return (
     <div className="space-y-6 pb-12">
       {/* Main Interactive Map Component with Hopping Method & Critical/Risk/Normal Zones */}
-      <GeospatialLeafletMap
-        location={location}
-        onSelectNode={onSelectNode}
-        onSelectLocation={onSelectLocation}
-        compact={false}
-      />
+      <BorderGlow
+        edgeSensitivity={30}
+        glowColor="0 125 115"
+        backgroundColor={isDarkMode ? 'rgba(0,0,0,0.85)' : '#ffffff'}
+        borderRadius={24}
+        glowRadius={40}
+        glowIntensity={1.0}
+        coneSpread={25}
+        animated={false}
+        colors={['#007D73', '#0d9488', '#2dd4bf']}
+        className="w-full"
+      >
+        <GeospatialLeafletMap
+          location={location}
+          onSelectNode={onSelectNode}
+          onSelectLocation={onSelectLocation}
+          onToggleNodeStatus={onToggleNodeStatus}
+          compact={false}
+        />
+      </BorderGlow>
 
       {/* Geospatial Classification and Hopping Intelligence Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <BorderGlow
+        edgeSensitivity={30}
+        glowColor="40 80 80"
+        backgroundColor={isDarkMode ? '#120F17' : '#ffffff'}
+        borderRadius={24}
+        glowRadius={40}
+        glowIntensity={1.0}
+        coneSpread={25}
+        animated={false}
+        colors={['#c084fc', '#f472b6', '#38bdf8']}
+        className="w-full"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
         {/* Card 1: Critical, Risk & Normal Zone Demarcation */}
         <div
           className={`rounded-xl p-5 border transition-all ${
@@ -190,6 +219,7 @@ export const GeospatialMapView: React.FC<GeospatialMapViewProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </BorderGlow>
+  </div>
   );
 };
